@@ -134,8 +134,15 @@ That's it. No Foundry. No npm. No web3.py. Pure Python.
 ```python
 from uniswap_autopilot.analytics.il_calculator import calculate_il
 
-for ratio in [1.1, 1.5, 2.0, 3.0]:
-    print(f"  Price {ratio}x → IL: {calculate_il(price_ratio=ratio):.2%}")
+# ETH-USDC pool, 1% fee tier, entry at $3000
+il = calculate_il(
+    price_entry=3000.0,
+    price_current=3300.0,  # 10% up
+    tick_lower=-887220, tick_upper=887220,
+    decimals0=18, decimals1=6,
+    liquidity=1000000000000,
+)
+print(f"  IL: {il['ilPct']:.2f}%")
 ```
 
 ```
@@ -150,9 +157,13 @@ for ratio in [1.1, 1.5, 2.0, 3.0]:
 ```python
 from uniswap_autopilot.analytics.range_suggest import suggest_ranges
 
-ranges = suggest_ranges(current_price=3000, volatility_pct=25, strategy="balanced")
+ranges = suggest_ranges(
+    chain_name="ethereum",
+    token_a="ETH", token_b="USDC",
+    fee_tier=3000,
+)
 for r in ranges:
-    print(f"  ${r['lower']:,.0f} — ${r['upper']:,.0f}  ({r['label']})")
+    print(f"  ${r['lower']:,.0f} — ${r['upper']:,.0f}  ({r['profile']})")
 ```
 
 ```
@@ -167,10 +178,14 @@ for r in ranges:
 from uniswap_autopilot.swap.trading_api.quote import build_quote_payload, summarize_quote
 
 quote = build_quote_payload(
-    chain="base",
-    input_token="ETH",
-    output_token="USDC",
-    amount="0.1",
+    wallet="0x...",
+    chain_id=8453,
+    api_token_in="ETH",
+    api_token_out="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",  # USDC on Base
+    base_amount="0.1",
+    swap_type="EXACT_INPUT",
+    slippage="0.5",
+    routing_preference="CLASSIC",
 )
 print(summarize_quote(quote))
 ```
@@ -184,13 +199,13 @@ print(summarize_quote(quote))
 ### 🔍 Search & Score Tokens
 
 ```python
-from uniswap_autopilot.search.search import search_token
-from uniswap_autopilot.search.risk import assess_risk
+from uniswap_autopilot.search.search import search_tokens
+from uniswap_autopilot.search.risk import risk_assess
 
-results = search_token(query="PEPE", chain="ethereum")
-for token in results[:3]:
-    risk = assess_risk(token["address"], chain="ethereum")
-    print(f"  {token['symbol']:8s} risk={risk['score']:3d}/100  ${token['price']:.8f}")
+results = search_tokens(query="PEPE", chain="ethereum", limit=3)
+for token in results:
+    risk = risk_assess(token["address"], "ethereum")
+    print(f"  {token['symbol']:8s} risk={risk['level']}  ${token['price']:.8f}")
 ```
 
 ```
