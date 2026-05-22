@@ -8,6 +8,10 @@
 
 Pure Python · Zero Dependencies · Uniswap v2 / v3 / v4 · 6 Chains · 13K Lines
 
+[![Test](https://github.com/counterfactual5/uniswap-autopilot/actions/workflows/test.yml/badge.svg)](https://github.com/counterfactual5/uniswap-autopilot/actions)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Tests](https://img.shields.io/badge/tests-99%20passing-green.svg)](tests/)
