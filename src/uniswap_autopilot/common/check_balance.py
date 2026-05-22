@@ -52,7 +52,7 @@ def main() -> None:
         print(f"{status}: {token['symbol']} balance={result.get('balance', '?')} required={amount_base} ({args.amount})")
     else:
         from uniswap_autopilot.execute._internal.rpc import query_erc20_balance, query_native_balance
-        if is_native(args.token) or token.get("address") == "NATIVE":
+        if is_native(chain, args.token) or token.get("address") == "NATIVE":
             raw = query_native_balance(wallet, rpc)
         else:
             raw = query_erc20_balance(wallet, token["address"], rpc)

@@ -225,7 +225,7 @@ UNIVERSAL_ROUTER_ADDRESSES: dict[str, str] = {
     "base": "0x198EF79F1F515F02dFE9e3115eD9fC07183f02fC",
     "arbitrum": "0x4D9079Bb4165aeb4084c526a3C95e761A5DABb07",
     "optimism": "0xc3e7cF3A5F74717452f52BEdE06991c50F960F7e",
-    "polygon": "0x4e2d3b9e3a8b57907f6ecac8a2b8e5e93b0b50",
+    "polygon": "0x1095692a6237d83c6a72f3f5efedb9a670c49223",
     "bsc": "0x4D9079Bb4165aeb4084c526a3C95e761A5DABb07",
     "avalanche": "0x4D9079Bb4165aeb4084c526a3C95e761A5DABb07",
     "celo": "0x4D9079Bb4165aeb4084c526a3C95e761A5DABb07",
@@ -252,7 +252,7 @@ V4_CONTRACTS: dict[str, dict[str, str]] = {
         "quoter": "0x52f0e24d1c21c8a0cb1e5a5dd6198556bd9e1203",
     },
     "base": {
-        "poolManager": "0x498581fF718922c3f8E6A244956afC099b2652b2b",
+        "poolManager": "0x498581ff718922c3f8e6a244956af099b2652b2b",
         "positionManager": "0x7C5f5a4bBd8fd63184577525326123b519429Bdc",
         "stateView": "0xA3c0c9b65bAd0b08107aa264b0F3Db444b867a71",
         "quoter": "0x0d5e0f971ed27fbff6c2837bf31316121532048d",
