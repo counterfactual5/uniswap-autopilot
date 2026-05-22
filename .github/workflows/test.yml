@@ -1,4 +1,5 @@
 name: Test
+  workflow_dispatch:
 
 on:
   workflow_dispatch:
