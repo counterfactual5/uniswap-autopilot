@@ -1,7 +1,7 @@
 name: Test
-  workflow_dispatch:
 
 on:
+  workflow_dispatch:
   push:
     branches: [master, main]
   pull_request:
