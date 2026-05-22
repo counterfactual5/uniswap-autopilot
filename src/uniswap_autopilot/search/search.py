@@ -21,7 +21,7 @@ GT_BASE = "https://api.geckoterminal.com/api/v2"
 GT_HEADERS = {"Accept": "application/json;version=20230203", "User-Agent": "uniswap-autopilot/1.0"}
 
 # Load chain config from chains.json
-_DATA_ROOT = Path(__file__).resolve().parent.parent.parent.parent / "data"
+_DATA_ROOT = Path(__file__).resolve().parent.parent / "data"
 _CHAINS_CFG = json.loads(
     (_DATA_ROOT / "chains.json").read_text(encoding="utf-8")
 )
