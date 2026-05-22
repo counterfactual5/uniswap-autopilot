@@ -12,11 +12,6 @@ Pure Python · Zero Dependencies · Uniswap v2 / v3 / v4 · 6 Chains · 13K Line
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Tests](https://img.shields.io/badge/tests-99%20passing-green.svg)](tests/)
-[![Zero Deps](https://img.shields.io/badge/dependencies-zero-brightgreen.svg)](pyproject.toml)
-
 [Installation](#installation) · [Features](#features) · [Quick Start](#quick-start) · [Architecture](#architecture) · [Comparison](#how-does-this-compare-to-uniswap-ai)
 
 </div>
@@ -512,7 +507,7 @@ ruff check src/ tests/
 ## Roadmap
 
 - [ ] MCP server wrapper for plug-and-play agent integration
-- [ ] PyPI package publishing
+- [x] PyPI package publishing
 - [ ] Async support (async/await)
 - [ ] More DEX aggregators (1inch, Paraswap)
 - [ ] Position monitoring & alerting
