@@ -1,0 +1,29 @@
+{
+  "enabled": false,
+  "allowedChains": [
+    "base"
+  ],
+  "allowedPairs": [
+    {
+      "chain": "base",
+      "tokenIn": "USDC",
+      "tokenOut": "WETH",
+      "maxAmount": "100",
+      "maxSlippage": 0.5,
+      "allowAutoSignPermit": false,
+      "allowAutoApproval": false,
+      "allowAutoBroadcastSwap": false
+    },
+    {
+      "chain": "base",
+      "tokenIn": "NATIVE",
+      "tokenOut": "USDC",
+      "maxAmount": "0.1",
+      "maxSlippage": 0.5,
+      "allowAutoSignPermit": false,
+      "allowAutoApproval": false,
+      "allowAutoBroadcastSwap": false
+    }
+  ],
+  "requirePreflightOk": true
+}
