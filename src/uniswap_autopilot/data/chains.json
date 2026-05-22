@@ -1,0 +1,135 @@
+{
+  "ethereum": {
+    "chainId": 1,
+    "nativeSymbol": "ETH",
+    "wrappedNativeSymbol": "WETH",
+    "urlParam": "ethereum",
+    "geckoterminalNetworkId": "eth"
+  },
+  "optimism": {
+    "chainId": 10,
+    "nativeSymbol": "ETH",
+    "wrappedNativeSymbol": "WETH",
+    "urlParam": "optimism",
+    "geckoterminalNetworkId": "optimism"
+  },
+  "bsc": {
+    "chainId": 56,
+    "nativeSymbol": "BNB",
+    "wrappedNativeSymbol": "WBNB",
+    "urlParam": "bnb",
+    "geckoterminalNetworkId": "bsc"
+  },
+  "unichain": {
+    "chainId": 130,
+    "nativeSymbol": "ETH",
+    "wrappedNativeSymbol": "WETH",
+    "urlParam": "unichain",
+    "geckoterminalNetworkId": "unichain"
+  },
+  "polygon": {
+    "chainId": 137,
+    "nativeSymbol": "MATIC",
+    "wrappedNativeSymbol": "WMATIC",
+    "urlParam": "polygon",
+    "geckoterminalNetworkId": "polygon_pos"
+  },
+  "monad": {
+    "chainId": 143,
+    "nativeSymbol": "MON",
+    "wrappedNativeSymbol": "WMON",
+    "urlParam": "monad",
+    "geckoterminalNetworkId": "monad"
+  },
+  "x_layer": {
+    "chainId": 196,
+    "nativeSymbol": "OKB",
+    "wrappedNativeSymbol": "WOKB",
+    "urlParam": "xlayer",
+    "geckoterminalNetworkId": "xlayer"
+  },
+  "zksync": {
+    "chainId": 324,
+    "nativeSymbol": "ETH",
+    "wrappedNativeSymbol": "WETH",
+    "urlParam": "zksync",
+    "geckoterminalNetworkId": "zksync"
+  },
+  "world_chain": {
+    "chainId": 480,
+    "nativeSymbol": "ETH",
+    "wrappedNativeSymbol": "WETH",
+    "urlParam": "worldchain",
+    "geckoterminalNetworkId": "worldchain"
+  },
+  "soneium": {
+    "chainId": 1868,
+    "nativeSymbol": "ETH",
+    "wrappedNativeSymbol": "WETH",
+    "urlParam": "soneium",
+    "geckoterminalNetworkId": "soneium"
+  },
+  "tempo": {
+    "chainId": 4217,
+    "nativeSymbol": "AVAX",
+    "wrappedNativeSymbol": "WAVAX",
+    "urlParam": "tempo",
+    "geckoterminalNetworkId": "tempo"
+  },
+  "base": {
+    "chainId": 8453,
+    "nativeSymbol": "ETH",
+    "wrappedNativeSymbol": "WETH",
+    "urlParam": "base",
+    "geckoterminalNetworkId": "base"
+  },
+  "arbitrum": {
+    "chainId": 42161,
+    "nativeSymbol": "ETH",
+    "wrappedNativeSymbol": "WETH",
+    "urlParam": "arbitrum",
+    "geckoterminalNetworkId": "arbitrum"
+  },
+  "celo": {
+    "chainId": 42220,
+    "nativeSymbol": "CELO",
+    "wrappedNativeSymbol": "CELO",
+    "urlParam": "celo",
+    "geckoterminalNetworkId": "celo"
+  },
+  "avalanche": {
+    "chainId": 43114,
+    "nativeSymbol": "AVAX",
+    "wrappedNativeSymbol": "WAVAX",
+    "urlParam": "avalanche",
+    "geckoterminalNetworkId": "avax"
+  },
+  "linea": {
+    "chainId": 59144,
+    "nativeSymbol": "ETH",
+    "wrappedNativeSymbol": "WETH",
+    "urlParam": "linea",
+    "geckoterminalNetworkId": "linea"
+  },
+  "blast": {
+    "chainId": 81457,
+    "nativeSymbol": "ETH",
+    "wrappedNativeSymbol": "WETH",
+    "urlParam": "blast",
+    "geckoterminalNetworkId": "blast"
+  },
+  "zora": {
+    "chainId": 7777777,
+    "nativeSymbol": "ETH",
+    "wrappedNativeSymbol": "WETH",
+    "urlParam": "zora",
+    "geckoterminalNetworkId": "zora"
+  },
+  "ink": {
+    "chainId": 57073,
+    "nativeSymbol": "ETH",
+    "wrappedNativeSymbol": "WETH",
+    "urlParam": "ink",
+    "geckoterminalNetworkId": "ink"
+  }
+}
