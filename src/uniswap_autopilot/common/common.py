@@ -16,7 +16,7 @@ from urllib.request import Request, urlopen
 
 ADDRESS_RE = re.compile(r"^0x[a-fA-F0-9]{40}$")
 AMOUNT_RE = re.compile(r"^[0-9]+(?:\.[0-9]+)?$")
-ASSET_ROOT = Path(__file__).resolve().parent.parent.parent.parent / "data"
+ASSET_ROOT = Path(__file__).resolve().parent.parent / "data"
 COMMON_TOKEN_FILE = ASSET_ROOT / "common-token-addresses.json"
 TOKEN_CACHE_FILE = ASSET_ROOT / "token-cache.json"
 CHAINS_FILE = ASSET_ROOT / "chains.json"
