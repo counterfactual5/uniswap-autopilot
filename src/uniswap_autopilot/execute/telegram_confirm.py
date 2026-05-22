@@ -27,17 +27,33 @@ from urllib.request import Request, urlopen
 # ── config ──────────────────────────────────────────────────────────────────
 
 
-def _read_openclaw_config() -> tuple[str, str]:
-    """Return (bot_token, chat_id) from openclaw.json."""
-    cfg_path = Path.home() / ".openclaw" / "openclaw.json"
-    with open(cfg_path) as f:
+def _read_config_file(config_path: str | None = None) -> tuple[str, str]:
+    """Return (bot_token, chat_id) from a JSON config file.
+
+    Config is expected to be a dict with optional nested keys, e.g.
+    {"botToken": "...", "chatId": "..."}  or
+    {"channels": {"telegram": {"botToken": "...", "allowFrom": [...]}}}
+    """
+    path = Path(config_path or os.environ.get("TELEGRAM_CONFIG_PATH", ""))
+    if not path.is_file():
+        raise FileNotFoundError(f"Config file not found: {path}")
+
+    with open(path) as f:
         cfg = json.load(f)
-    tg = cfg.get("channels", {}).get("telegram", {})
-    bot_token = tg.get("botToken", "")
+
+    # Try flat keys first, then nested openclaw-style
+    bot_token = cfg.get("botToken", "")
+    chat_id = cfg.get("chatId", "")
+
     if not bot_token:
-        raise RuntimeError("Telegram botToken not found in openclaw.json")
-    allow = tg.get("allowFrom", [])
-    chat_id = str(allow[-1]) if allow else os.environ.get("TELEGRAM_CHAT_ID", "")
+        tg = cfg.get("channels", {}).get("telegram", {})
+        bot_token = tg.get("botToken", "")
+        if not chat_id:
+            allow = tg.get("allowFrom", [])
+            chat_id = str(allow[-1]) if allow else ""
+
+    if not bot_token:
+        raise RuntimeError("Telegram botToken not found in config file")
     return bot_token, chat_id
 
 
@@ -54,7 +70,7 @@ def _ensure_config():
     if BOT_TOKEN and CHAT_ID:
         return
     try:
-        BOT_TOKEN, CHAT_ID = _read_openclaw_config()
+        BOT_TOKEN, CHAT_ID = _read_config_file()
     except (FileNotFoundError, RuntimeError):
         pass
 
@@ -73,7 +89,8 @@ def _tg_api(method: str, payload: dict[str, Any]) -> dict[str, Any]:
     if not BOT_TOKEN:
         raise RuntimeError(
             "Telegram bot token not configured. "
-            "Set TELEGRAM_BOT_TOKEN env or configure openclaw.json"
+            "Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID env vars, "
+            "or provide a config file via TELEGRAM_CONFIG_PATH"
         )
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/{method}"
     data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
