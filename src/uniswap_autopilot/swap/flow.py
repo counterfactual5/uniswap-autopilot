@@ -98,8 +98,6 @@ def run_trade_flow(
     if effective_signer_args is not None:
         if execute_transaction.has_direct_signer(effective_signer_args):
             wallet_preference = "secure"
-        elif execute_transaction.has_direct_signer(effective_signer_args):
-            wallet_preference = "hot"
     resolved_wallet = resolve_wallet_address(wallet, "wallet", preference=wallet_preference)
     if not resolved_wallet:
         raise ValueError("--wallet is required unless a wallet address env var is configured")
