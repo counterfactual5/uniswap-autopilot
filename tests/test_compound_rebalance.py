@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import json
-import sys
 import unittest
-from pathlib import Path
 from unittest import mock
 
 MOCK_WALLET = "0x1234567890abcdef1234567890abcdef12345678"
