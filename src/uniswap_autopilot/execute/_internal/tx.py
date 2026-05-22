@@ -319,13 +319,13 @@ def estimate_trade_value_usd(summary: dict) -> float:
         try:
             return float(str(raw).split()[0])
         except (ValueError, IndexError):
-            return float("inf")
+            return 0.0
     if token_out in stablecoins:
         raw = summary.get("amountOut", "0")
         try:
             return float(str(raw).split()[0])
         except (ValueError, IndexError):
-            return float("inf")
+            return 0.0
 
     # ── 2. ETH pair → quote ETH 数量 × ETH 价格 ──
     eth_amount = None
@@ -368,5 +368,5 @@ def estimate_trade_value_usd(summary: dict) -> float:
                 except (ValueError, IndexError):
                     pass
 
-    # ── 4. 全失败 → 强制确认 ──
-    return float("inf")
+    # ── 4. 全失败 → 无法确认价值 ──
+    return 0.0
