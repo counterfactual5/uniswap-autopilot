@@ -14,6 +14,7 @@ from uniswap_autopilot.common.common import (
     decimal_to_base_units,
     dump_json,
     get_position_manager_address,
+    get_v3_factory_address,
     load_local_env,
     normalize_chain,
     parse_amount,
@@ -23,9 +24,10 @@ from uniswap_autopilot.common.common import (
     validate_fee_tier,
 )
 from uniswap_autopilot.execute._internal.rpc import build_calldata, encode_address, encode_int, encode_uint
-from uniswap_autopilot.lp.v3.pool import query_pool_full_info
+from uniswap_autopilot.lp.v3.pool import query_pool_address, query_pool_full_info, query_slot0
 from uniswap_autopilot.lp.v3.position import query_position
 from uniswap_autopilot.lp.v3.tick import fee_tier_to_tick_spacing
+from uniswap_autopilot.analytics.position import calculate_position_amounts
 
 
 def _encode_mint_calldata(
@@ -289,9 +291,25 @@ def build_decrease_liquidity_transaction(
     min1 = "0"
     if slippage_pct > 0:
         from decimal import Decimal, ROUND_DOWN
-        frac = Decimal(remove_liq) / Decimal(current_liq)
-        amt0_est = (Decimal(pos.get("amount0", "0")) * frac).to_integral_value(rounding=ROUND_DOWN)
-        amt1_est = (Decimal(pos.get("amount1", "0")) * frac).to_integral_value(rounding=ROUND_DOWN)
+        try:
+            factory = get_v3_factory_address(chain_name)
+            pool_addr = query_pool_address(pos["token0"], pos["token1"], int(pos["fee"]), factory, rpc_url_resolved)
+            pool_slot = query_slot0(pool_addr, rpc_url_resolved)
+            current_tick = pool_slot["tick"]
+            amount0_human, amount1_human = calculate_position_amounts(
+                liquidity=int(pos["liquidity"]),
+                current_tick=current_tick,
+                tick_lower=int(pos["tickLower"]),
+                tick_upper=int(pos["tickUpper"]),
+                decimals0=token0_info["decimals"],
+                decimals1=token1_info["decimals"],
+            )
+            frac = Decimal(remove_liq) / Decimal(current_liq)
+            amt0_est = int(Decimal(str(amount0_human)) * frac * Decimal(10 ** token0_info["decimals"]))
+            amt1_est = int(Decimal(str(amount1_human)) * frac * Decimal(10 ** token1_info["decimals"]))
+        except Exception:
+            amt0_est = 0
+            amt1_est = 0
         min0 = _apply_slippage(str(amt0_est), slippage_pct)
         min1 = _apply_slippage(str(amt1_est), slippage_pct)
 
