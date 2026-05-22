@@ -4,17 +4,32 @@ from uniswap_autopilot.analytics.range_suggest import suggest_ranges
 
 
 def main():
-    # 1. Calculate impermanent loss at various price ratios
+    # 1. Calculate impermanent loss for a V3 ETH-USDC position
     print("=== Impermanent Loss ===")
-    for ratio in [1.1, 1.2, 1.5, 2.0, 3.0]:
-        il = calculate_il(price_ratio=ratio)
-        print(f"  Price ratio {ratio:.1f}x → IL: {il:.2%}")
+    # ETH-USDC pool, 0.3% fee tier, full-range position, entry @ $3000, now @ $3300
+    il = calculate_il(
+        price_entry=3000.0,
+        price_current=3300.0,
+        tick_lower=-887220,
+        tick_upper=887220,
+        decimals0=18,
+        decimals1=6,
+        liquidity=1000000000000,
+    )
+    print(f"  Price change: +{il['priceChangePct']:.1f}%")
+    print(f"  IL: {il['ilPct']:.2f}%")
+    print(f"  In range: {il['inRange']}")
 
-    # 2. Suggest LP ranges
-    print("\n=== Range Suggestions (ETH @ $3000, 20% vol) ===")
-    ranges = suggest_ranges(current_price=3000, volatility_pct=20, strategy="balanced")
+    # 2. Suggest LP ranges for ETH-USDC on Ethereum
+    print("\n=== Range Suggestions ===")
+    ranges = suggest_ranges(
+        chain_name="ethereum",
+        token_a="ETH",
+        token_b="USDC",
+        fee_tier=3000,
+    )
     for r in ranges:
-        print(f"  ${r['lower']:.0f} — ${r['upper']:.0f}  ({r['label']})")
+        print(f"  ${float(r['lower']):,.0f} — ${float(r['upper']):,.0f}  ({r.get('profile', '?')})")
 
 
 if __name__ == "__main__":
