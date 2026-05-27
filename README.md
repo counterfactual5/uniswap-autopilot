@@ -514,3 +514,11 @@ Please open an issue first to discuss what you'd like to change.
 ## License
 
 [MIT](LICENSE) — use it however you want.
+
+---
+
+If this project helped you, please ⭐ star this repo — it helps others find it!
+
+### Related Projects
+
+- **[defi-autopilot](https://github.com/counterfactual5/defi-autopilot)** — Multi-protocol DeFi toolkit (Aave, Compound, Morpho, Moonwell, Curve, Lido, 1inch + Uniswap). If you need more than just Uniswap, check it out.
