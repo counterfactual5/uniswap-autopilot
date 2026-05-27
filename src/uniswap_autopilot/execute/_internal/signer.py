@@ -29,7 +29,8 @@ try:
         get_address as _pure_get_address,
     )
 except ImportError:
-    _pure_signer_available = lambda: False
+    def _pure_signer_available() -> bool:
+        return False
 
 
 # ── Namespace / arg helpers ────────────────────────────────────────────────
