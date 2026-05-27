@@ -199,7 +199,7 @@ def request_trade_confirmation(
                 _tg_api("editMessageText", {
                     "chat_id": CHAT_ID,
                     "message_id": msg_id,
-                    "text": f"{'\\n'.join(lines)}\n\n🔒 *Decision: {decision}*",
+                    "text": "\n".join(lines) + "\n\n🔒 *Decision: " + decision + "*",
                     "parse_mode": "Markdown",
                 })
                 _tg_api("answerCallbackQuery", {
