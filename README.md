@@ -199,11 +199,11 @@ print(summarize_quote(quote))
 
 ```python
 from uniswap_autopilot.search.search import search_tokens
-from uniswap_autopilot.search.risk import risk_assess
+from uniswap_autopilot.search.risk import assess_risk
 
 results = search_tokens(query="PEPE", chain="ethereum", limit=3)
 for token in results:
-    risk = risk_assess(token["address"], "ethereum")
+    risk = assess_risk(token["address"], "ethereum")
     print(f"  {token['symbol']:8s} risk={risk['level']}  ${token['price']:.8f}")
 ```
 
@@ -245,9 +245,9 @@ print(result["swap"]["transactionHash"])
 ### 🔄 Auto-Rebalance an LP Position
 
 ```python
-from uniswap_autopilot.lp.v3.auto_rebalance import check_and_rebalance
+from uniswap_autopilot.lp.v3.auto_rebalance import execute_rebalance
 
-result = check_and_rebalance(
+result = execute_rebalance(
     position={"token_id": 123456, "chain": "ethereum"},
     strategy="balanced",
     volatility_pct=30,
