@@ -259,7 +259,6 @@ _SELECTORS: dict[str, str] = {
     # Uniswap V3 NonfungiblePositionManager
     "positions(uint256)": "0x99fbab88",
     "tokenOfOwnerByIndex(address,uint256)": "0x2f745c59",
-    "balanceOf(address)": "0x70a08231",
     # Uniswap V3 Pool
     "getPool(address,address,uint24)": "0x1698ee82",
     "slot0()": "0x3850c7bd",
@@ -267,10 +266,6 @@ _SELECTORS: dict[str, str] = {
     "feeGrowthGlobal0X128()": "0xf3058399",
     "feeGrowthGlobal1X128()": "0x463e4d99",
     "tickSpacing()": "0xd0c93a7c",
-    "factory()": "0xc45a0155",
-    "token0()": "0x0dfe1681",
-    "token1()": "0xd21220a7",
-    "fee()": "0xddca3f43",
     # Uniswap V3 actions
     "mint((address,address,uint24,int24,int24,uint256,uint256,uint256,uint256,address,uint256))": "0x88316456",
     "increaseLiquidity((uint256,uint256,uint256,uint256,uint256,uint256))": "0x219f5d17",
@@ -305,7 +300,6 @@ _SELECTORS: dict[str, str] = {
     # V4 Position Manager
     "getPositionLiquidity(uint256)": "0x2e3b7a7e",
     "getPoolAndPositionInfo(uint256)": "0x3af6b530",
-    "nextTokenId()": "0x800f9a5b",
 }
 
 
