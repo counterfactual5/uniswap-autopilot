@@ -9,6 +9,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from uniswap_autopilot import policy as _policy
 from uniswap_autopilot import state_machine
 from uniswap_autopilot.audit import (
     EVENT_BROADCAST,
@@ -212,6 +213,29 @@ def main() -> None:
             if response["preflight"].get("ok") is False:
                 raise RuntimeError(
                     "broadcast preflight failed: " + "; ".join(response["preflight"].get("issues") or [])
+                )
+            # --- policy gate (PREFLIGHT → SIGNED) ---
+            pol = _policy.load_policy()
+            policy_ctx = {
+                "chain": chain_key,
+                "sender": wallet_addr,
+                "receiver": tx.get("to"),
+                "amount": tx.get("value"),
+            }
+            policy_result = _policy.check_uniswap(pol, policy_ctx)
+            response["policyCheck"] = policy_result.to_dict()
+            if not policy_result.allowed:
+                state_machine.transition(run_id, state_machine.STATE_FAILED,
+                                         payload={"policy_violations": policy_result.to_dict()["violations"]})
+                log_event(
+                    event=EVENT_ERROR,
+                    chain=chain_key,
+                    wallet=wallet_addr,
+                    error_code="policy_rejected",
+                    details={"violations": policy_result.to_dict()["violations"]},
+                )
+                raise RuntimeError(
+                    f"Policy rejected: {'; '.join(v.message for v in policy_result.violations)}"
                 )
             # --- sign + broadcast (guard side effects before execution) ---
             action = state_machine.next_action(run_id)
