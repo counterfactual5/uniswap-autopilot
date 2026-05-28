@@ -1068,7 +1068,7 @@ wheels = [
 
 [[package]]
 name = "uniswap-autopilot"
-version = "0.1.2"
+version = "0.4.2"
 source = { editable = "." }
 
 [package.optional-dependencies]
