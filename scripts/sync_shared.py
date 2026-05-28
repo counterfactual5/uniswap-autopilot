@@ -3,7 +3,7 @@
 
 import argparse
 import difflib
-import shutil
+import re
 import subprocess
 import sys
 import tempfile
@@ -54,6 +54,8 @@ def get_target_projects() -> dict[str, Path]:
             "hyperliquid-autopilot": PROJECT_ROOT.parent / "hyperliquid-autopilot" / "src" / "hyperliquid_autopilot",
             "polymarket-autopilot": PROJECT_ROOT.parent / "polymarket-autopilot" / "src" / "polymarket_autopilot",
             "uniswap-autopilot": PROJECT_ROOT.parent / "uniswap-autopilot" / "src" / "uniswap_autopilot",
+            # defi-autopilot uses a flat package layout (no src/).
+            "defi-autopilot": PROJECT_ROOT.parent / "defi-autopilot" / "defi_autopilot",
         }
 
     targets = {}
@@ -61,8 +63,12 @@ def get_target_projects() -> dict[str, Path]:
         ("hyperliquid-autopilot", "hyperliquid_autopilot"),
         ("polymarket-autopilot", "polymarket_autopilot"),
         ("uniswap-autopilot", "uniswap_autopilot"),
+        ("defi-autopilot", "defi_autopilot"),
     ]:
+        # src/ layout for autopilots, flat layout for defi.
         path = PROJECT_ROOT / "src" / pkg_name
+        if not path.exists():
+            path = PROJECT_ROOT / pkg_name
         if path.exists():
             targets[project_name] = path
             break
@@ -87,9 +93,6 @@ def transformed_content(source_path: Path, project_name: str) -> str:
         '_DEFAULT_PROJECT = "evm-wallet-scanner"',
         f'_DEFAULT_PROJECT = "{project_name}"',
     )
-
-
-import re
 
 
 def _shared_policy_portion(content: str) -> str:

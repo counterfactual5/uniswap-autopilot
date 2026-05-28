@@ -6,12 +6,17 @@ in the trade execution state machine.
 ## Quick Start
 
 ```bash
-# Copy the template to the default lookup path
+# Copy the template to the default lookup path (YAML or JSON both work)
 cp policy.yaml ~/.stageforge/policy.yaml
+# cp policy.yaml ~/.stageforge/policy.json   # optional: convert if you prefer JSON
 
 # Or use a custom location
 export POLICY_FILE=/path/to/my-policy.yaml
 ```
+
+When running under **StageForge**, `bin/stageforge` exports `POLICY_FILE` automatically
+if `~/.stageforge/policy.yaml`, `policy.yml`, or `policy.json` exists (same order as
+`load_policy()`).
 
 ## File Resolution
 
@@ -111,6 +116,29 @@ uniswap-autopilot:
   min_output_amount: 100.0   # require at least 100 USDC worth of output
 ```
 
+### defi-autopilot
+
+defi-autopilot enforces policy at the **broadcast chokepoint**
+(`core/tx.build_and_send_tx`), which every protocol client (Aave, Morpho,
+Moonwell, Uniswap, Curve, Compound, Lido, 1inch) funnels through.
+
+| Rule | Key | Severity | Notes |
+|------|-----|----------|-------|
+| Chain allow-list | `allowed_chains` | **Hard reject** | Enforced for every tx |
+| Blacklist | `blacklist_addresses` | **Hard reject** | Checked against the tx destination/spender |
+| Native amount cap | `max_amount` | **Hard reject** | **Native value only** (ETH/MATIC). ERC-20 amounts live in calldata and are not visible here |
+
+**Why no state machine here?** A single CLI command (e.g. `defi aave supply`)
+can broadcast **two** transactions — an ERC-20 `approve` followed by the actual
+action. A per-process `run_id` with strict anti-replay would incorrectly treat
+the second broadcast as a replay of the first. defi-autopilot therefore applies
+the **stateless** policy + audit layers at the chokepoint; if you need
+resumable per-operation state, gate it at the CLI-command layer with a distinct
+`run_id` per logical operation.
+
+To cap ERC-20 notionals, pass the amount/token explicitly at the protocol-client
+layer (future enhancement) rather than relying on the chokepoint.
+
 ## Troubleshooting
 
 ### "policy_rejected" in audit log
@@ -131,9 +159,15 @@ permissive `Policy()` with all limits set to `None` — everything passes.
 
 ### Trade blocked, expected to pass
 
-1. Check `~/.stageforge/policy.yaml` — is the right project section present?
-2. Run `cat ~/.stageforge/policy.yaml | python3 -c "import yaml,sys; yaml.safe_load(sys.stdin)"` to validate syntax.
-3. Override temporarily: `POLICY_FILE=/dev/null` (disables policy checks for one invocation).
+1. Check `~/.stageforge/policy.yaml` (or `.json`) — is the right project section present?
+2. Validate syntax:
+   ```bash
+   python3 -c "import yaml; from pathlib import Path; yaml.safe_load(Path.home().joinpath('.stageforge/policy.yaml').read_text())"
+   # or for JSON:
+   python3 -c "import json; from pathlib import Path; json.loads(Path.home().joinpath('.stageforge/policy.json').read_text())"
+   ```
+3. Override temporarily: `unset POLICY_FILE` and rename/disable the file under `~/.stageforge/`,
+   or point `POLICY_FILE` at a permissive test file.
 
 ## Audit Integration
 
@@ -216,4 +250,101 @@ python3 scripts/audit_summary.py /tmp/sf-drill/audit.jsonl
 
 # Read from stdin
 cat audit.jsonl | python3 scripts/audit_summary.py -
+
+# Machine-readable JSON (for dashboards / alerts)
+python3 scripts/audit_summary.py audit.jsonl --json
 ```
+
+Example output after a drill run:
+
+```
+records: 6  (parse errors: 0)
+
+events:
+  preflight  2
+  sign       1
+  broadcast  1
+  confirm    1
+  error      1
+
+error_codes:
+  policy_rejected  1
+
+policy_warnings:
+  max_gas_price_gwei  1
+
+runs:
+  unique             3
+  reached_broadcast  1
+  reached_confirm    1
+  with_error_event   1
+```
+
+## Maintaining Shared Modules
+
+Four trading projects share `audit.py`, `state_machine.py`, and the **shared
+portion** of `policy.py`.  **evm-wallet-scanner** is the source of truth.
+
+| File | Auto-sync? | Notes |
+|------|------------|-------|
+| `audit.py` | Yes | Identical except `_DEFAULT_PROJECT` |
+| `state_machine.py` | Yes | Identical except `_DEFAULT_PROJECT` |
+| `policy.py` | **No** (check only) | Each repo adds `check_hyperliquid`, `check_polymarket`, `check_uniswap` |
+
+### Workflow
+
+```bash
+# From evm-wallet-scanner (syncs to all three downstream repos in a monorepo layout)
+cd evm-wallet-scanner
+python3 scripts/sync_shared.py
+
+# Dry-run: fail CI if drift (also runs in GitHub Actions on every PR)
+python3 scripts/sync_shared.py --check
+```
+
+**Rules:**
+
+1. Edit `audit.py` / `state_machine.py` only under `evm-wallet-scanner/src/evm_wallet_scanner/`, then run `sync_shared.py`.
+2. For `policy.py`, edit shared rules (load, check, Violation, etc.) in scanner; edit project-specific functions (`check_hyperliquid`, …) in each repo.
+3. Run tests in all four repos after a sync.
+4. From a single downstream repo, `sync_shared.py` only updates **that** repo — use scanner as the sync entry point when updating everyone.
+
+## StageForge Integration
+
+`stageforge bin/stageforge run` exports environment variables for downstream
+autopilot CLIs:
+
+| Variable | When set | Purpose |
+|----------|----------|---------|
+| `STAGEFORGE_RUN_ID` | Always (after `signal_init_run`) | Same id in signal files, state machine, audit log |
+| `POLICY_FILE` | If `~/.stageforge/policy.{yaml,yml,json}` exists | Points trading projects at the live policy file |
+
+Downstream projects resolve `run_id` from `STAGEFORGE_RUN_ID`, `AUDIT_RUN_ID`, or a generated id (in that order).
+
+### StageForge smoke test
+
+```bash
+mkdir -p ~/.stageforge
+cp /path/to/evm-wallet-scanner/policy.yaml ~/.stageforge/policy.yaml
+# YAML policy files need PyYAML: pip install pyyaml  (or use policy.json instead)
+
+export STAGEFORGE_STATE_DIR=/tmp/sf-smoke
+export AUDIT_LOG_PATH=/tmp/sf-smoke/audit.jsonl
+mkdir -p /tmp/sf-smoke
+
+# Simulate what stageforge exports (replace RUN_ID with your pipeline run id)
+export STAGEFORGE_RUN_ID="smoke-$(date +%s)"
+export POLICY_FILE="$HOME/.stageforge/policy.yaml"
+
+# 1) Policy dry-check without RPC
+evm-scan doctor --policy --chain ethereum --wallet 0x0000000000000000000000000000000000000001 \
+  --amount 10 --policy-file "$POLICY_FILE" --exit-code || true
+
+# 2) After any trade attempt, correlate state + audit
+python3 scripts/audit_summary.py "$AUDIT_LOG_PATH"
+ls -la "$STAGEFORGE_STATE_DIR/${STAGEFORGE_RUN_ID}.json" 2>/dev/null || echo "(no state file yet)"
+jq -r 'select(.run_id=="'"$STAGEFORGE_RUN_ID"'") | .event' "$AUDIT_LOG_PATH" 2>/dev/null
+```
+
+Expected: `doctor --policy` prints a `"policy"` block with `"allowed": true/false`;
+`audit_summary` shows event counts; state file name matches `STAGEFORGE_RUN_ID` when a broadcast path ran.

@@ -67,3 +67,17 @@ uniswap-autopilot:
     - optimism
   max_slippage_bps: 300     # 3 % — DEX trades
   # min_output_amount: 0.0  # check_uniswap(): disabled — set a positive value to enforce
+
+defi-autopilot:
+  # Enforced at the broadcast chokepoint (core/tx.build_and_send_tx):
+  #   - allowed_chains (hard reject)
+  #   - blacklist_addresses against the destination/spender (hard reject)
+  #   - max_amount against NATIVE value only (ERC-20 notionals live in calldata)
+  allowed_chains:
+    - base
+    - ethereum
+    - arbitrum
+    - optimism
+    - polygon
+    - unichain
+  max_amount: 5            # native value cap (ETH/MATIC) per tx; ERC-20 not covered here
