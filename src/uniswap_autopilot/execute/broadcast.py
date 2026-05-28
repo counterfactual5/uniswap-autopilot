@@ -94,6 +94,7 @@ def main() -> None:
     parser.add_argument("--output", help="把完整 JSON 输出写入文件")
     args = parser.parse_args()
 
+    run_id: str | None = None
     try:
         load_local_env()
 
@@ -212,62 +213,83 @@ def main() -> None:
                 raise RuntimeError(
                     "broadcast preflight failed: " + "; ".join(response["preflight"].get("issues") or [])
                 )
-            broadcast = broadcast_with_backend(
-                tx=tx,
-                explicit_rpc_url=args.rpc_url,
-                confirm=args.confirm,
-                signer_args_source=args,
-            )
-            response["commandPreview"] = broadcast["commandPreview"]
-            response["broadcastResult"] = broadcast["broadcastResult"]
-            response["signerBackend"] = broadcast["signerBackend"]
-            if broadcast.get("serviceDecision") is not None:
-                response["serviceDecision"] = broadcast["serviceDecision"]
-            response["transactionHash"] = extract_transaction_hash(response["broadcastResult"])
-            log_event(
-                event=EVENT_BROADCAST,
-                chain=chain_key,
-                wallet=wallet_addr,
-                tx_hash=response.get("transactionHash"),
-                details={
-                    "signerBackend": broadcast["signerBackend"],
-                    "tokenIn": tx.get("inputTokenSymbol"),
-                    "tokenOut": tx.get("outputTokenSymbol"),
-                    "amountIn": str(tx.get("inputAmount", "")),
-                    "amountOut": str(tx.get("outputAmount", "")),
-                },
-            )
-            # --- state machine: signed + broadcast ---
-            tx_hash_ = response.get("transactionHash")
+            # --- sign + broadcast (guard side effects before execution) ---
             action = state_machine.next_action(run_id)
-            if action in (state_machine.STATE_SIGNED, state_machine.STATE_BROADCAST):
+            tx_hash_ = ""
+            receipt_rpc_url = rpc_url
+            if action == state_machine.STATE_SIGNED:
                 state_machine.transition(run_id, state_machine.STATE_SIGNED)
+                broadcast = broadcast_with_backend(
+                    tx=tx,
+                    explicit_rpc_url=args.rpc_url,
+                    confirm=args.confirm,
+                    signer_args_source=args,
+                )
+                response["commandPreview"] = broadcast["commandPreview"]
+                response["broadcastResult"] = broadcast["broadcastResult"]
+                response["signerBackend"] = broadcast["signerBackend"]
+                if broadcast.get("serviceDecision") is not None:
+                    response["serviceDecision"] = broadcast["serviceDecision"]
+                tx_hash_ = extract_transaction_hash(response["broadcastResult"]) or ""
+                response["transactionHash"] = tx_hash_
+                receipt_rpc_url = broadcast["rpcUrl"]
+                log_event(
+                    event=EVENT_BROADCAST,
+                    chain=chain_key,
+                    wallet=wallet_addr,
+                    tx_hash=tx_hash_ or None,
+                    details={
+                        "signerBackend": broadcast["signerBackend"],
+                        "tokenIn": tx.get("inputTokenSymbol"),
+                        "tokenOut": tx.get("outputTokenSymbol"),
+                        "amountIn": str(tx.get("inputAmount", "")),
+                        "amountOut": str(tx.get("outputAmount", "")),
+                    },
+                )
                 state_machine.transition(run_id, state_machine.STATE_BROADCAST, payload={"tx_hash": tx_hash_})
+            elif action == state_machine.STATE_BROADCAST:
+                # Already broadcast in a previous run: recover persisted tx hash.
+                saved = state_machine.load_state(run_id) or {}
+                tx_hash_ = str(saved.get("payload", {}).get("tx_hash", "") or "")
+                if not tx_hash_:
+                    raise RuntimeError(f"run {run_id} is BROADCAST but missing tx_hash payload")
+                response["transactionHash"] = tx_hash_
+                response["broadcastResult"] = {"transactionHash": tx_hash_}
+            elif action == state_machine.STATE_CONFIRMED:
+                saved = state_machine.load_state(run_id) or {}
+                tx_hash_ = str(saved.get("payload", {}).get("tx_hash", "") or "")
+                response["transactionHash"] = tx_hash_
+                response["note"] = f"run {run_id} already confirmed; skipping broadcast/confirm"
             elif action is None:
                 raise RuntimeError(f"run {run_id} is in terminal state — cannot sign/broadcast")
-            response["receipt"] = execute_cast_receipt(
-                tx_hash=response["transactionHash"],
-                rpc_url=broadcast["rpcUrl"],
-                confirmations=args.receipt_confirmations,
-            )
-            success = receipt_succeeded(response["receipt"])
-            log_event(
-                event=EVENT_CONFIRM,
-                chain=chain_key,
-                wallet=wallet_addr,
-                tx_hash=response.get("transactionHash"),
-                error_code=None if success else "receipt_failed",
-                details={
-                    "status": response["receipt"].get("status"),
-                    "confirmations": args.receipt_confirmations,
-                },
-            )
-            # --- state machine: confirmed ---
-            action = state_machine.next_action(run_id)
-            if action == state_machine.STATE_CONFIRMED:
-                state_machine.transition(run_id, state_machine.STATE_CONFIRMED)
-            if not success:
-                raise RuntimeError(f"broadcast receipt status is not successful: {response['receipt'].get('status')}")
+            else:
+                raise RuntimeError(f"unexpected next_action={action!r} before broadcast")
+
+            if tx_hash_ and state_machine.next_action(run_id) == state_machine.STATE_CONFIRMED:
+                response["receipt"] = execute_cast_receipt(
+                    tx_hash=tx_hash_,
+                    rpc_url=receipt_rpc_url,
+                    confirmations=args.receipt_confirmations,
+                )
+            if "receipt" in response:
+                success = receipt_succeeded(response["receipt"])
+                log_event(
+                    event=EVENT_CONFIRM,
+                    chain=chain_key,
+                    wallet=wallet_addr,
+                    tx_hash=tx_hash_ or response.get("transactionHash"),
+                    error_code=None if success else "receipt_failed",
+                    details={
+                        "status": response["receipt"].get("status"),
+                        "confirmations": args.receipt_confirmations,
+                    },
+                )
+                # --- state machine: confirmed ---
+                action = state_machine.next_action(run_id)
+                if action == state_machine.STATE_CONFIRMED:
+                    state_machine.transition(run_id, state_machine.STATE_CONFIRMED)
+                if not success:
+                    raise RuntimeError(f"broadcast receipt status is not successful: {response['receipt'].get('status')}")
 
         if args.output:
             Path(args.output).write_text(
@@ -277,7 +299,8 @@ def main() -> None:
         dump_json(response)
     except Exception as exc:  # noqa: BLE001
         # --- state machine: failed (transition error = bug, let it surface) ---
-        state_machine.transition(run_id, state_machine.STATE_FAILED, payload={"error_code": type(exc).__name__})
+        if run_id:
+            state_machine.transition(run_id, state_machine.STATE_FAILED, payload={"error_code": type(exc).__name__})
         log_event(
             event=EVENT_ERROR,
             chain=None,
