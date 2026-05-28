@@ -196,10 +196,11 @@ def main() -> None:
                 or os.environ.get("STAGEFORGE_RUN_ID")
                 or f"uniswap-{uuid.uuid4().hex[:12]}"
             )
-            try:
+            action = state_machine.next_action(run_id)
+            if action is None:
+                raise RuntimeError(f"run {run_id} is in terminal state — cannot proceed")
+            if action == state_machine.STATE_PREFLIGHT:
                 state_machine.transition(run_id, state_machine.STATE_PREFLIGHT)
-            except Exception:
-                pass
             log_event(
                 event=EVENT_PREFLIGHT,
                 chain=chain_key,
@@ -236,13 +237,14 @@ def main() -> None:
                     "amountOut": str(tx.get("outputAmount", "")),
                 },
             )
-            # --- state machine: signed + broadcast checkpoint ---
+            # --- state machine: signed + broadcast ---
             tx_hash_ = response.get("transactionHash")
-            try:
+            action = state_machine.next_action(run_id)
+            if action in (state_machine.STATE_SIGNED, state_machine.STATE_BROADCAST):
                 state_machine.transition(run_id, state_machine.STATE_SIGNED)
                 state_machine.transition(run_id, state_machine.STATE_BROADCAST, payload={"tx_hash": tx_hash_})
-            except Exception:
-                pass
+            elif action is None:
+                raise RuntimeError(f"run {run_id} is in terminal state — cannot sign/broadcast")
             response["receipt"] = execute_cast_receipt(
                 tx_hash=response["transactionHash"],
                 rpc_url=broadcast["rpcUrl"],
@@ -261,10 +263,9 @@ def main() -> None:
                 },
             )
             # --- state machine: confirmed ---
-            try:
+            action = state_machine.next_action(run_id)
+            if action == state_machine.STATE_CONFIRMED:
                 state_machine.transition(run_id, state_machine.STATE_CONFIRMED)
-            except Exception:
-                pass
             if not success:
                 raise RuntimeError(f"broadcast receipt status is not successful: {response['receipt'].get('status')}")
 
@@ -275,11 +276,8 @@ def main() -> None:
             )
         dump_json(response)
     except Exception as exc:  # noqa: BLE001
-        # --- state machine: failed ---
-        try:
-            state_machine.transition(run_id, state_machine.STATE_FAILED, payload={"error_code": type(exc).__name__})
-        except Exception:
-            pass
+        # --- state machine: failed (transition error = bug, let it surface) ---
+        state_machine.transition(run_id, state_machine.STATE_FAILED, payload={"error_code": type(exc).__name__})
         log_event(
             event=EVENT_ERROR,
             chain=None,
