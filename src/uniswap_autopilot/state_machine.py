@@ -91,6 +91,19 @@ def _resolve_run_id(explicit: str | None) -> str | None:
     return None
 
 
+# ── Action mapping (happy-path states → next action) ─────────────────────
+
+_STATE_TO_ACTION: dict[str, str | None] = {
+    STATE_INIT: STATE_PREFLIGHT,
+    STATE_PREFLIGHT: STATE_SIGNED,
+    STATE_SIGNED: STATE_BROADCAST,
+    STATE_BROADCAST: STATE_CONFIRMED,
+    STATE_CONFIRMED: None,
+    STATE_CANCELLED: None,
+    STATE_FAILED: None,
+}
+
+
 # ── Public API ───────────────────────────────────────────────────────────────
 
 
@@ -216,6 +229,32 @@ def status(run_id: str) -> dict[str, Any]:
     }
 
 
+def next_action(run_id: str) -> str | None:
+    """Return the next allowed happy-path action for *run_id*, or None.
+
+    Callers should check this before executing any side effect (sign, broadcast,
+    confirm).  If the returned action does not match what the caller plans to do
+    the caller must skip that step — it has already been completed in a prior
+    run (anti-replay).
+    """
+    state = load_state(run_id)
+    if state is None:
+        return STATE_PREFLIGHT  # fresh run — start at preflight
+    return _STATE_TO_ACTION.get(state.get("current_state", STATE_INIT))
+
+
+def resume(run_id: str) -> str | None:
+    """Return the action that an interrupted run should resume from, or None.
+
+    ``resume()`` is a convenience wrapper around ``next_action()`` with clearer
+    semantics for orchestrators.
+
+    Returns ``None`` when the run is already complete (CONFIRMED / CANCELLED /
+    FAILED) or the state file is missing.
+    """
+    return next_action(run_id)
+
+
 def list_runs() -> list[dict[str, Any]]:
     """Return status summaries for all persisted runs."""
     sd = _state_dir()
@@ -269,6 +308,8 @@ __all__ = [
     "init_state",
     "list_runs",
     "load_state",
+    "next_action",
+    "resume",
     "status",
     "transition",
 ]
