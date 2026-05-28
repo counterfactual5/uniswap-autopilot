@@ -22,6 +22,10 @@ venv/
 .env
 .env.local
 
+# Lint / type
+.ruff_cache/
+.mypy_cache/
+
 # Test
 .pytest_cache/
 .coverage
