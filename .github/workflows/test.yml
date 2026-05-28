@@ -30,5 +30,19 @@ jobs:
       - name: Lint
         run: ruff check .
 
+      - name: Validate policy.yaml
+        run: |
+          python -m pip install pyyaml
+          python - <<'PY'
+          import pathlib, sys, yaml
+          p = pathlib.Path("policy.yaml")
+          if not p.exists():
+              print("no policy.yaml, skipping")
+              sys.exit(0)
+          data = yaml.safe_load(p.read_text())
+          assert isinstance(data, dict), "policy.yaml must be a mapping"
+          print("policy.yaml OK:", list(data.keys()))
+          PY
+
       - name: Run tests
         run: pytest --cov=. --cov-report=term-missing --cov-fail-under=60

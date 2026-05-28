@@ -237,6 +237,13 @@ def main() -> None:
                 raise RuntimeError(
                     f"Policy rejected: {'; '.join(v.message for v in policy_result.violations)}"
                 )
+            if policy_result.warnings:
+                log_event(
+                    event=EVENT_PREFLIGHT,
+                    chain=chain_key,
+                    wallet=wallet_addr,
+                    details={"stage": "policy", "warnings": policy_result.to_dict()["warnings"]},
+                )
             # --- sign + broadcast (guard side effects before execution) ---
             action = state_machine.next_action(run_id)
             tx_hash_ = ""

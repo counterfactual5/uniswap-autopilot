@@ -92,5 +92,48 @@ class TestCombinedViolation(unittest.TestCase):
         self.assertIn("min_output_amount", rules)
 
 
+class TestPolicyGateE2E(unittest.TestCase):
+    """End-to-end: a real policy file loaded via POLICY_FILE drives check_uniswap
+    exactly as broadcast.py does, and rejects an over-limit swap."""
+
+    def setUp(self) -> None:
+        self._tmpdir = tempfile.TemporaryDirectory()
+        policy_data = {
+            "uniswap-autopilot": {
+                "max_amount": 100,
+                "allowed_chains": ["ethereum", "base"],
+            }
+        }
+        self._policy_path = os.path.join(self._tmpdir.name, "policy.json")
+        with open(self._policy_path, "w", encoding="utf-8") as fh:
+            json.dump(policy_data, fh)
+        os.environ["POLICY_FILE"] = self._policy_path
+
+    def tearDown(self) -> None:
+        self._tmpdir.cleanup()
+        os.environ.pop("POLICY_FILE", None)
+
+    def test_loaded_policy_rejects_over_limit(self) -> None:
+        pol = load_policy()  # resolves via POLICY_FILE, project=uniswap-autopilot
+        # The same context shape broadcast.py builds.
+        ctx = {"chain": "ethereum", "sender": "0xabc", "receiver": "0xdef", "amount": "500"}
+        result = check_uniswap(pol, ctx)
+        self.assertFalse(result.allowed)
+        self.assertEqual(result.violations[0].rule, "max_amount")
+
+    def test_loaded_policy_rejects_disallowed_chain(self) -> None:
+        pol = load_policy()
+        ctx = {"chain": "arbitrum", "sender": "0xabc", "amount": "10"}
+        result = check_uniswap(pol, ctx)
+        self.assertFalse(result.allowed)
+        self.assertEqual(result.violations[0].rule, "allowed_chains")
+
+    def test_loaded_policy_allows_within_limits(self) -> None:
+        pol = load_policy()
+        ctx = {"chain": "base", "sender": "0xabc", "amount": "10"}
+        result = check_uniswap(pol, ctx)
+        self.assertTrue(result.allowed)
+
+
 if __name__ == "__main__":
     unittest.main()
