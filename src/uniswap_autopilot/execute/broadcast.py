@@ -5,10 +5,11 @@ import argparse
 import json
 import os
 import sys
+import uuid
 from pathlib import Path
 from typing import Any
 
-
+from uniswap_autopilot import state_machine
 from uniswap_autopilot.audit import (
     EVENT_BROADCAST,
     EVENT_CONFIRM,
@@ -73,16 +74,21 @@ from uniswap_autopilot.execute._internal.tx import (
     validate_hex_data,
 )
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="对 approval 或 swap 交易做安全广播")
     source_group = parser.add_mutually_exclusive_group(required=True)
     source_group.add_argument("--swap-file", help="swap_dry_run.py 的输出文件")
-    source_group.add_argument("--approval-file", help="trading_api_quote.py 的 quote 输出文件;会读取 approvalCheck.approval")
+    source_group.add_argument(
+        "--approval-file", help="trading_api_quote.py 的 quote 输出文件;会读取 approvalCheck.approval"
+    )
     source_group.add_argument("--lp-file", help="LP 脚本(build_lp_tx.py / run_lp_flow.py)的输出文件")
     parser.add_argument("--rpc-url", help="显式指定 RPC URL;否则尝试从环境变量解析")
     parser.add_argument("--broadcast", action="store_true", help="真的调用 cast send 广播交易")
     parser.add_argument("--confirm", help="必须与脚本给出的 confirmation 完全一致才允许广播")
-    parser.add_argument("--telegram-confirm", action="store_true", help="下单前推送 Telegram inline button 等待用户确认")
+    parser.add_argument(
+        "--telegram-confirm", action="store_true", help="下单前推送 Telegram inline button 等待用户确认"
+    )
     parser.add_argument("--receipt-confirmations", type=int, default=1, help="广播后查询 receipt 的确认数,默认 1")
     add_signer_arguments(parser)
     parser.add_argument("--output", help="把完整 JSON 输出写入文件")
@@ -97,7 +103,13 @@ def main() -> None:
             tx = load_approval_transaction(args.approval_file)
         elif args.lp_file:
             blob = json.loads(Path(args.lp_file).read_text(encoding="utf-8"))
-            lp_tx = blob.get("transaction") or blob.get("mint", {}).get("transaction") or blob.get("increase", {}).get("transaction") or blob.get("decrease", {}).get("transaction") or blob.get("collect", {}).get("transaction")
+            lp_tx = (
+                blob.get("transaction")
+                or blob.get("mint", {}).get("transaction")
+                or blob.get("increase", {}).get("transaction")
+                or blob.get("decrease", {}).get("transaction")
+                or blob.get("collect", {}).get("transaction")
+            )
             if not lp_tx:
                 raise ValueError("LP file must contain 'transaction' or a sub-action with 'transaction'")
             tx = normalize_transaction(lp_tx, tx_kind="lp", source_file=str(args.lp_file), source_kind="lp-file")
@@ -119,9 +131,10 @@ def main() -> None:
 
         # Telegram confirmation if requested or exceeds threshold
         THRESHOLD_USD = float(os.environ.get("TRADE_CONFIRM_THRESHOLD_USD", "0"))
-        
+
         # Calculate trade value in USD
         from uniswap_autopilot.execute._internal.tx import estimate_trade_value_usd
+
         estimate_data = {
             **summary,
             "tokenIn": tx.get("inputTokenSymbol", ""),
@@ -133,10 +146,10 @@ def main() -> None:
             "chain": (tx.get("chainKey") or "").lower(),
         }
         trade_value_usd = estimate_trade_value_usd(estimate_data)
-        
+
         if args.telegram_confirm or (THRESHOLD_USD > 0 and trade_value_usd >= THRESHOLD_USD):
             from uniswap_autopilot.execute.telegram_confirm import request_trade_confirmation
-            
+
             trade_details = {
                 "chain": summary.get("chain"),
                 "tokenIn": summary.get("tokenIn"),
@@ -146,16 +159,17 @@ def main() -> None:
                 "slippage": summary.get("slippage"),
                 "valueUsd": f"${trade_value_usd:.2f}",
             }
-            
+
             if not request_trade_confirmation(trade_details, timeout_seconds=300):
                 print("❌ Trade rejected or timeout")
                 sys.exit(0)
-            
+
             # Telegram 确认后自动补上确认短语，免去手动 --confirm
             if not args.confirm:
                 from uniswap_autopilot.execute._internal.tx import build_confirmation_phrase
+
                 args.confirm = build_confirmation_phrase(tx)
-            
+
             response["telegramConfirmation"] = {
                 "status": "approved",
                 "valueUsd": f"${trade_value_usd:.2f}",
@@ -168,11 +182,7 @@ def main() -> None:
             }
 
         chain_key = (summary.get("chain") or tx.get("chainKey") or "").lower() or None
-        wallet_addr = (
-            (tx.get("from") if isinstance(tx, dict) else None)
-            or summary.get("from")
-            or summary.get("sender")
-        )
+        wallet_addr = (tx.get("from") if isinstance(tx, dict) else None) or summary.get("from") or summary.get("sender")
 
         if args.broadcast:
             response["preflight"] = build_preflight_report(
@@ -180,6 +190,16 @@ def main() -> None:
                 explicit_rpc_url=args.rpc_url,
                 strict=True,
             )
+            # --- state machine: init run_id + preflight checkpoint ---
+            run_id = (
+                os.environ.get("AUDIT_RUN_ID")
+                or os.environ.get("STAGEFORGE_RUN_ID")
+                or f"uniswap-{uuid.uuid4().hex[:12]}"
+            )
+            try:
+                state_machine.transition(run_id, state_machine.STATE_PREFLIGHT)
+            except Exception:
+                pass
             log_event(
                 event=EVENT_PREFLIGHT,
                 chain=chain_key,
@@ -216,6 +236,13 @@ def main() -> None:
                     "amountOut": str(tx.get("outputAmount", "")),
                 },
             )
+            # --- state machine: signed + broadcast checkpoint ---
+            tx_hash_ = response.get("transactionHash")
+            try:
+                state_machine.transition(run_id, state_machine.STATE_SIGNED)
+                state_machine.transition(run_id, state_machine.STATE_BROADCAST, payload={"tx_hash": tx_hash_})
+            except Exception:
+                pass
             response["receipt"] = execute_cast_receipt(
                 tx_hash=response["transactionHash"],
                 rpc_url=broadcast["rpcUrl"],
@@ -233,6 +260,11 @@ def main() -> None:
                     "confirmations": args.receipt_confirmations,
                 },
             )
+            # --- state machine: confirmed ---
+            try:
+                state_machine.transition(run_id, state_machine.STATE_CONFIRMED)
+            except Exception:
+                pass
             if not success:
                 raise RuntimeError(f"broadcast receipt status is not successful: {response['receipt'].get('status')}")
 
@@ -243,6 +275,11 @@ def main() -> None:
             )
         dump_json(response)
     except Exception as exc:  # noqa: BLE001
+        # --- state machine: failed ---
+        try:
+            state_machine.transition(run_id, state_machine.STATE_FAILED, payload={"error_code": type(exc).__name__})
+        except Exception:
+            pass
         log_event(
             event=EVENT_ERROR,
             chain=None,
