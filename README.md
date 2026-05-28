@@ -18,6 +18,13 @@ Pure Python · Zero Dependencies · Uniswap v2 / v3 / v4 · 6 Chains · 13K Line
 
 ---
 
+> [!IMPORTANT]
+> **Trading safety.** Broadcast paths run through a shared risk-control policy
+> (amount caps, chain allow-list, address blacklist, slippage, min-output)
+> evaluated between the `PREFLIGHT` and `SIGNED` states. Read
+> **[RISK_POLICY.md](RISK_POLICY.md)** and copy `policy.yaml` to
+> `~/.stageforge/policy.yaml` before going live.
+
 ## The Problem
 
 [uniswap-ai](https://github.com/Uniswap/uniswap-ai) is Uniswap Labs' official project. It teaches AI agents to plan trades and generate deep links. But when the agent actually needs to **execute**? It says:
