@@ -9,6 +9,13 @@ from pathlib import Path
 from typing import Any
 
 
+from uniswap_autopilot.audit import (
+    EVENT_BROADCAST,
+    EVENT_CONFIRM,
+    EVENT_ERROR,
+    EVENT_PREFLIGHT,
+    log_event,
+)
 from uniswap_autopilot.common.common import dump_json, load_local_env
 from uniswap_autopilot.execute._internal.constants import (
     APPROVE_SELECTOR,
@@ -160,11 +167,25 @@ def main() -> None:
                 "valueUsd": f"${trade_value_usd:.2f}",
             }
 
+        chain_key = (summary.get("chain") or tx.get("chainKey") or "").lower() or None
+        wallet_addr = (
+            (tx.get("from") if isinstance(tx, dict) else None)
+            or summary.get("from")
+            or summary.get("sender")
+        )
+
         if args.broadcast:
             response["preflight"] = build_preflight_report(
                 tx,
                 explicit_rpc_url=args.rpc_url,
                 strict=True,
+            )
+            log_event(
+                event=EVENT_PREFLIGHT,
+                chain=chain_key,
+                wallet=wallet_addr,
+                error_code=None if response["preflight"].get("ok") else "preflight_failed",
+                details={"ok": response["preflight"].get("ok"), "issues": response["preflight"].get("issues")},
             )
             if response["preflight"].get("ok") is False:
                 raise RuntimeError(
@@ -182,12 +203,37 @@ def main() -> None:
             if broadcast.get("serviceDecision") is not None:
                 response["serviceDecision"] = broadcast["serviceDecision"]
             response["transactionHash"] = extract_transaction_hash(response["broadcastResult"])
+            log_event(
+                event=EVENT_BROADCAST,
+                chain=chain_key,
+                wallet=wallet_addr,
+                tx_hash=response.get("transactionHash"),
+                details={
+                    "signerBackend": broadcast["signerBackend"],
+                    "tokenIn": tx.get("inputTokenSymbol"),
+                    "tokenOut": tx.get("outputTokenSymbol"),
+                    "amountIn": str(tx.get("inputAmount", "")),
+                    "amountOut": str(tx.get("outputAmount", "")),
+                },
+            )
             response["receipt"] = execute_cast_receipt(
                 tx_hash=response["transactionHash"],
                 rpc_url=broadcast["rpcUrl"],
                 confirmations=args.receipt_confirmations,
             )
-            if not receipt_succeeded(response["receipt"]):
+            success = receipt_succeeded(response["receipt"])
+            log_event(
+                event=EVENT_CONFIRM,
+                chain=chain_key,
+                wallet=wallet_addr,
+                tx_hash=response.get("transactionHash"),
+                error_code=None if success else "receipt_failed",
+                details={
+                    "status": response["receipt"].get("status"),
+                    "confirmations": args.receipt_confirmations,
+                },
+            )
+            if not success:
                 raise RuntimeError(f"broadcast receipt status is not successful: {response['receipt'].get('status')}")
 
         if args.output:
@@ -197,6 +243,13 @@ def main() -> None:
             )
         dump_json(response)
     except Exception as exc:  # noqa: BLE001
+        log_event(
+            event=EVENT_ERROR,
+            chain=None,
+            wallet=None,
+            error_code=type(exc).__name__,
+            details={"message": str(exc), "action": "execute_transaction"},
+        )
         print(json.dumps({"error": str(exc)}, ensure_ascii=False, indent=2), file=sys.stderr)
         sys.exit(1)
 
