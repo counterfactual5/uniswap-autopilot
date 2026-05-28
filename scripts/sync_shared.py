@@ -9,7 +9,11 @@ import sys
 import tempfile
 from pathlib import Path
 
-SHARED_FILES = ["audit.py", "state_machine.py", "policy.py"]
+SHARED_FILES = ["audit.py", "state_machine.py"]
+# policy.py is NOT auto-synced because each project adds project-specific
+# check functions (e.g. check_hyperliquid, check_uniswap).  We still warn
+# about drift in the shared portion, but manual reconciliation is required.
+POLICY_FILE = "policy.py"
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
@@ -85,6 +89,22 @@ def transformed_content(source_path: Path, project_name: str) -> str:
     )
 
 
+import re
+
+
+def _shared_policy_portion(content: str) -> str:
+    """Return the shared portion of a policy.py file.
+
+    Everything before the first project-specific marker is considered shared.
+    Markers: a comment like "# ── Something-specific" or a function like
+    ``def check_hyperliquid(...)``.
+    """
+    match = re.search(r"\n(# ── [^-]+-specific[ -]|def check_(?!\()|__all__\s*=)", content)
+    if match:
+        return content[: match.start()]
+    return content
+
+
 def check_project(source_dir: Path, project_name: str, target_dir: Path) -> bool:
     ok = True
     for filename in SHARED_FILES:
@@ -103,6 +123,26 @@ def check_project(source_dir: Path, project_name: str, target_dir: Path) -> bool
             tofile=f"{dest_path} (expected)",
         )
         sys.stdout.writelines(diff)
+
+    # policy.py is checked but never auto-synced.
+    source_policy = read_text(source_dir / POLICY_FILE)
+    dest_policy = read_text(target_dir / POLICY_FILE)
+    expected_shared = _shared_policy_portion(source_policy).replace(
+        '_DEFAULT_PROJECT = "evm-wallet-scanner"',
+        f'_DEFAULT_PROJECT = "{project_name}"',
+    )
+    actual_shared = _shared_policy_portion(dest_policy)
+    if expected_shared != actual_shared:
+        ok = False
+        print(f"DRIFT (shared portion): {project_name}/{POLICY_FILE}")
+        diff = difflib.unified_diff(
+            actual_shared.splitlines(keepends=True),
+            expected_shared.splitlines(keepends=True),
+            fromfile=str(target_dir / POLICY_FILE),
+            tofile=f"{target_dir / POLICY_FILE} (expected shared portion)",
+        )
+        sys.stdout.writelines(diff)
+
     return ok
 
 
@@ -113,6 +153,7 @@ def sync_project(source_dir: Path, project_name: str, target_dir: Path) -> None:
         content = transformed_content(source_path, project_name)
         write_text(dest_path, content)
         print(f"  -> {dest_path}")
+    print(f"  NOTE: {POLICY_FILE} is NOT auto-synced (contains project-specific code).")
 
 
 def main() -> int:
