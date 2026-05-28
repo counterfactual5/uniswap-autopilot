@@ -27,11 +27,11 @@ from urllib.request import Request, urlopen
 # ── config ──────────────────────────────────────────────────────────────────
 
 
-def _read_config_file(config_path: str | None = None) -> tuple[str, str]:
-    """Return (bot_token, chat_id) from a JSON config file.
+def _read_config_file(config_path: str | None = None) -> tuple[str, str, list[str]]:
+    """Return (bot_token, chat_id, allowed_user_ids) from a JSON config file.
 
     Config is expected to be a dict with optional nested keys, e.g.
-    {"botToken": "...", "chatId": "..."}  or
+    {"botToken": "...", "chatId": "...", "allowFrom": [...]}  or
     {"channels": {"telegram": {"botToken": "...", "allowFrom": [...]}}}
     """
     path = Path(config_path or os.environ.get("TELEGRAM_CONFIG_PATH", ""))
@@ -41,9 +41,9 @@ def _read_config_file(config_path: str | None = None) -> tuple[str, str]:
     with open(path) as f:
         cfg = json.load(f)
 
-    # Try flat keys first, then nested openclaw-style
     bot_token = cfg.get("botToken", "")
     chat_id = cfg.get("chatId", "")
+    allow_from = cfg.get("allowFrom") or []
 
     if not bot_token:
         tg = cfg.get("channels", {}).get("telegram", {})
@@ -51,33 +51,54 @@ def _read_config_file(config_path: str | None = None) -> tuple[str, str]:
         if not chat_id:
             allow = tg.get("allowFrom", [])
             chat_id = str(allow[-1]) if allow else ""
+        if not allow_from:
+            allow_from = tg.get("allowFrom") or []
 
     if not bot_token:
         raise RuntimeError("Telegram botToken not found in config file")
-    return bot_token, chat_id
+    return bot_token, chat_id, [str(x) for x in allow_from]
 
 
 BOT_TOKEN, CHAT_ID = "", ""
+ALLOWED_USER_IDS: list[str] = []
 
 
 def _ensure_config():
     """Lazily load config on first use to avoid import-time failure."""
-    global BOT_TOKEN, CHAT_ID
+    global BOT_TOKEN, CHAT_ID, ALLOWED_USER_IDS
     if BOT_TOKEN:
         return
     BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
     CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
-    if BOT_TOKEN and CHAT_ID:
+    env_allow = os.environ.get("TELEGRAM_ALLOWED_USER_IDS", "")
+    if env_allow:
+        ALLOWED_USER_IDS = [x.strip() for x in env_allow.split(",") if x.strip()]
+    if BOT_TOKEN and CHAT_ID and ALLOWED_USER_IDS:
         return
     try:
-        BOT_TOKEN, CHAT_ID = _read_config_file()
+        token, chat, allow = _read_config_file()
+        BOT_TOKEN = BOT_TOKEN or token
+        CHAT_ID = CHAT_ID or chat
+        if not ALLOWED_USER_IDS:
+            ALLOWED_USER_IDS = allow
     except (FileNotFoundError, RuntimeError):
         pass
 
 
-def _state_file() -> Path:
-    """Cross-platform state file path."""
-    return Path(tempfile.gettempdir()) / "uniswap_trade_confirmation_state.json"
+def _state_file(confirmation_id: str | None = None) -> Path:
+    """Cross-platform state file path.
+
+    The previous implementation used a single shared file for ALL
+    confirmation requests, which made it impossible to run concurrent trade
+    flows safely (one would overwrite another's state). We now namespace the
+    file by ``confirmation_id`` so each request owns its own state slot.
+    """
+    name = "uniswap_trade_confirmation_state"
+    if confirmation_id:
+        # Strip any characters that would be problematic on disk.
+        safe = "".join(c for c in confirmation_id if c.isalnum() or c in ("_", "-"))
+        name = f"{name}_{safe}"
+    return Path(tempfile.gettempdir()) / f"{name}.json"
 
 
 # ── helpers ─────────────────────────────────────────────────────────────────
@@ -126,6 +147,7 @@ def request_trade_confirmation(
 
     Returns True if approved, False if rejected or timeout.
     """
+    _ensure_config()
     confirmation_id = f"uni_{int(time.time()) % 100000:05d}"
 
     lines = [
@@ -164,7 +186,8 @@ def request_trade_confirmation(
         "status": "pending",
         "created_at": time.time(),
     }
-    _state_file().write_text(json.dumps(state))
+    state_path = _state_file(confirmation_id)
+    state_path.write_text(json.dumps(state))
 
     deadline = time.time() + timeout_seconds
     last_offset: int | None = None
@@ -185,13 +208,22 @@ def request_trade_confirmation(
             cb = upd.get("callback_query")
             if not cb:
                 continue
+            from_user = cb.get("from", {}) if isinstance(cb, dict) else {}
+            from_id = str(from_user.get("id", "")).strip()
+            if ALLOWED_USER_IDS and from_id not in ALLOWED_USER_IDS:
+                _tg_api("answerCallbackQuery", {
+                    "callback_query_id": cb.get("id", ""),
+                    "text": "Not authorized",
+                    "show_alert": True,
+                })
+                continue
             data = cb.get("data", "")
             if data in (f"uap_{confirmation_id}", f"urj_{confirmation_id}"):
                 is_approved = data.startswith("uap_")
                 decision = "✅ Approved" if is_approved else "❌ Rejected"
                 state["status"] = "approved" if is_approved else "rejected"
                 state["resolved_at"] = time.time()
-                _state_file().write_text(json.dumps(state))
+                state_path.write_text(json.dumps(state))
                 _tg_api("editMessageReplyMarkup", {
                     "chat_id": CHAT_ID,
                     "message_id": msg_id,
@@ -212,7 +244,7 @@ def request_trade_confirmation(
 
     print("⏰ Confirmation timeout")
     state["status"] = "timeout"
-    _state_file().write_text(json.dumps(state))
+    state_path.write_text(json.dumps(state))
     return False
 
 

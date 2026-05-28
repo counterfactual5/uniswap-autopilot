@@ -145,16 +145,61 @@ def query_gas_price(rpc_url: str) -> int:
     return _decode_int(result)
 
 
-def execute_cast_receipt(tx_hash: str, rpc_url: str, confirmations: int = 1) -> dict[str, Any]:
-    """Get transaction receipt via ``eth_getTransactionReceipt``.
+def execute_cast_receipt(
+    tx_hash: str,
+    rpc_url: str,
+    confirmations: int = 1,
+    *,
+    poll_interval: float = 2.0,
+    max_wait_seconds: float = 300.0,
+) -> dict[str, Any]:
+    """Wait for a transaction receipt and ``confirmations`` additional blocks.
 
-    Note: ``confirmations`` is ignored in pure RPC mode (returns immediately).
-    For confirmation waiting, poll in a loop externally.
+    Polls ``eth_getTransactionReceipt`` until the tx is mined, then waits
+    until ``current_block >= receipt.blockNumber + (confirmations - 1)``.
+    Previously this function fetched the receipt once and ignored the
+    ``confirmations`` argument entirely, which silently lied to callers
+    that thought they were waiting for finality.
+
+    Raises ``TimeoutError`` if the receipt is not seen within
+    ``max_wait_seconds``.
     """
-    result = _json_rpc("eth_getTransactionReceipt", [tx_hash], rpc_url)
-    if result is None:
-        raise RuntimeError(f"Receipt not found for tx {tx_hash}")
-    return result
+    import time as _time
+
+    if confirmations < 1:
+        confirmations = 1
+
+    deadline = _time.monotonic() + max_wait_seconds
+    receipt: dict[str, Any] | None = None
+    while _time.monotonic() < deadline:
+        result = _json_rpc("eth_getTransactionReceipt", [tx_hash], rpc_url)
+        if result is not None:
+            receipt = result
+            break
+        _time.sleep(poll_interval)
+
+    if receipt is None:
+        raise TimeoutError(f"Receipt for tx {tx_hash} not seen within {max_wait_seconds}s")
+
+    if confirmations == 1:
+        return receipt
+
+    receipt_block_raw = receipt.get("blockNumber")
+    if receipt_block_raw is None:
+        return receipt
+    receipt_block = _decode_int(receipt_block_raw)
+
+    while _time.monotonic() < deadline:
+        head = _decode_int(_json_rpc("eth_blockNumber", [], rpc_url))
+        if head - receipt_block + 1 >= confirmations:
+            return receipt
+        _time.sleep(poll_interval)
+
+    raise TimeoutError(
+        f"Tx {tx_hash} mined at block {receipt_block} but only saw "
+        f"{head - receipt_block + 1} confirmation(s) within {max_wait_seconds}s "
+        f"(requested {confirmations})"
+    )
 
 
 def receipt_succeeded(receipt: dict[str, Any]) -> bool:

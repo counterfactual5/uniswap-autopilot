@@ -120,15 +120,31 @@ def sign_transaction(
     _require_available()
     pk = _get_private_key(private_key_env)
 
-    # Build transaction dict for eth_account
-    nonce = tx.get("nonce", 0)
+    # ``nonce`` MUST be supplied by the caller — silently defaulting to 0
+    # historically allowed the wrong nonce to be signed when the upstream
+    # pipeline forgot to attach one, leading to replacement-tx failures or,
+    # worse, replaying an old nonce against the network. Fail fast instead.
+    if "nonce" not in tx or tx["nonce"] is None:
+        raise ValueError(
+            "sign_transaction: 'nonce' is required. "
+            "Fetch it from the RPC (e.g. eth_getTransactionCount(addr, 'pending')) "
+            "and pass it explicitly — defaulting to 0 is unsafe."
+        )
+    nonce_raw = tx["nonce"]
+    if isinstance(nonce_raw, int):
+        nonce_int = nonce_raw
+    else:
+        nonce_int = int(str(nonce_raw), 0)
+    if nonce_int < 0:
+        raise ValueError(f"sign_transaction: nonce must be >= 0, got {nonce_int}")
+
     gas_limit = tx.get("gasLimit") or tx.get("gas") or tx.get("gas_limit", 210000)
     gas_price = tx.get("gasPrice") or tx.get("gas_price")
     max_fee = tx.get("maxFeePerGas")
     priority_fee = tx.get("maxPriorityFeePerGas")
 
     typed_tx: dict[str, Any] = {
-        "nonce": int(nonce) if not isinstance(nonce, int) else nonce,
+        "nonce": nonce_int,
         "to": tx["to"],
         "data": tx["data"],
         "value": int(tx["value"], 0) if isinstance(tx["value"], str) else int(tx["value"]),
