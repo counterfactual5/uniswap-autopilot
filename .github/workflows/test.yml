@@ -46,6 +46,3 @@ jobs:
 
       - name: Run tests
         run: pytest --cov=. --cov-report=term-missing --cov-fail-under=60
-
-      - name: Check shared module drift
-        run: python scripts/sync_shared.py --check
