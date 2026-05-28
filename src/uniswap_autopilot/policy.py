@@ -340,6 +340,8 @@ def _check_min_output_amount(policy: Policy, ctx: dict[str, Any], res: CheckResu
         min_dec = Decimal(str(min_out))
     except (InvalidOperation, ValueError):
         return
+    if min_dec <= 0:
+        return  # 0 or negative means disabled
     if out_dec < min_dec:
         res.violations.append(Violation(
             rule="min_output_amount",
