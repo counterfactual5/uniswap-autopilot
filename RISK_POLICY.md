@@ -241,18 +241,22 @@ Clean up with `rm -rf /tmp/sf-drill`.
 
 ## Auditing All Runs
 
-A shared summary script lives at `scripts/audit_summary.py` (identical across
-the four trading projects):
+Audit logs are plain JSON Lines (`audit.py` schema).  Each repository is
+**self-contained on GitHub** — there is no bundled summary script in the repo.
+
+For local development, a standalone helper may live beside your clones at
+`~/github_projects/audit_summary.py` (not shipped in any cloud repo):
 
 ```bash
-# Event counts + rejection/warning breakdown for a log file
-python3 scripts/audit_summary.py /tmp/sf-drill/audit.jsonl
+python3 ~/github_projects/audit_summary.py /tmp/sf-drill/audit.jsonl
+cat audit.jsonl | python3 ~/github_projects/audit_summary.py -
+python3 ~/github_projects/audit_summary.py audit.jsonl --json
+```
 
-# Read from stdin
-cat audit.jsonl | python3 scripts/audit_summary.py -
+Without that local tool, `jq` is enough:
 
-# Machine-readable JSON (for dashboards / alerts)
-python3 scripts/audit_summary.py audit.jsonl --json
+```bash
+jq -r '.event' audit.jsonl | sort | uniq -c
 ```
 
 Example output after a drill run:
@@ -291,23 +295,34 @@ portion** of `policy.py`.  **evm-wallet-scanner** is the source of truth.
 | `state_machine.py` | Yes | Identical except `_DEFAULT_PROJECT` |
 | `policy.py` | **No** (check only) | Each repo adds `check_hyperliquid`, `check_polymarket`, `check_uniswap` |
 
-### Workflow
+### Workflow (local development only)
+
+These projects share `audit.py`, `state_machine.py`, and the **shared portion**
+of `policy.py`.  **evm-wallet-scanner** is the canonical source when you edit
+locally.  On GitHub each repo is **fully independent** — no cross-repo CI, no
+bundled sync scripts, no git clones of sibling projects.
+
+Local tooling (lives beside your clones, **not** in any cloud repo):
+
+| Script | Location | Purpose |
+|--------|----------|---------|
+| `sync_shared.py` | `~/github_projects/sync_shared.py` | Copy shared modules across sibling clones |
+| `audit_summary.py` | `~/github_projects/audit_summary.py` | Summarize audit JSONL logs |
 
 ```bash
-# From evm-wallet-scanner (syncs to all three downstream repos in a monorepo layout)
-cd evm-wallet-scanner
-python3 scripts/sync_shared.py
+# Requires sibling repos under ~/github_projects/ (never clones from GitHub)
+python3 ~/github_projects/sync_shared.py
 
-# Dry-run: fail CI if drift (also runs in GitHub Actions on every PR)
-python3 scripts/sync_shared.py --check
+# Dry-run: report drift without writing
+python3 ~/github_projects/sync_shared.py --check
 ```
 
 **Rules:**
 
-1. Edit `audit.py` / `state_machine.py` only under `evm-wallet-scanner/src/evm_wallet_scanner/`, then run `sync_shared.py`.
-2. For `policy.py`, edit shared rules (load, check, Violation, etc.) in scanner; edit project-specific functions (`check_hyperliquid`, …) in each repo.
-3. Run tests in all four repos after a sync.
-4. From a single downstream repo, `sync_shared.py` only updates **that** repo — use scanner as the sync entry point when updating everyone.
+1. Edit `audit.py` / `state_machine.py` under `evm-wallet-scanner/src/evm_wallet_scanner/`, then run the local sync script.
+2. For `policy.py`, edit shared rules in scanner; edit project-specific functions (`check_hyperliquid`, …) in each repo.
+3. Run tests in each repo you touched after a sync.
+4. The sync script only updates directories that exist as **sibling folders on disk**.
 
 ## StageForge Integration
 
@@ -341,7 +356,8 @@ evm-scan doctor --policy --chain ethereum --wallet 0x000000000000000000000000000
   --amount 10 --policy-file "$POLICY_FILE" --exit-code || true
 
 # 2) After any trade attempt, correlate state + audit
-python3 scripts/audit_summary.py "$AUDIT_LOG_PATH"
+python3 ~/github_projects/audit_summary.py "$AUDIT_LOG_PATH" 2>/dev/null \
+  || jq -r '.event' "$AUDIT_LOG_PATH" | sort | uniq -c
 ls -la "$STAGEFORGE_STATE_DIR/${STAGEFORGE_RUN_ID}.json" 2>/dev/null || echo "(no state file yet)"
 jq -r 'select(.run_id=="'"$STAGEFORGE_RUN_ID"'") | .event' "$AUDIT_LOG_PATH" 2>/dev/null
 ```
