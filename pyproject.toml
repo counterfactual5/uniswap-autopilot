@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "uniswap-autopilot"
-version = "0.5.2"
+version = "0.5.3"
 description = "Automated swap execution, LP management, and analytics for Uniswap v2/v3/v4"
 readme = "README.md"
 license = {text = "MIT"}
