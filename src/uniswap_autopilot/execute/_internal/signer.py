@@ -23,17 +23,25 @@ from uniswap_autopilot.execute._internal.constants import (
 
 try:
     from uniswap_autopilot.execute._internal.pure_signer import (
-        is_available as _pure_signer_available,
-        sign_typed_data as _pure_sign_typed_data,
-        sign_transaction as _pure_sign_transaction,
         get_address as _pure_get_address,
     )
+    from uniswap_autopilot.execute._internal.pure_signer import (
+        is_available as _pure_signer_available,
+    )
+    from uniswap_autopilot.execute._internal.pure_signer import (
+        sign_transaction as _pure_sign_transaction,
+    )
+    from uniswap_autopilot.execute._internal.pure_signer import (
+        sign_typed_data as _pure_sign_typed_data,
+    )
 except ImportError:
+
     def _pure_signer_available() -> bool:
         return False
 
 
 # ── Namespace / arg helpers ────────────────────────────────────────────────
+
 
 def has_direct_signer(args: argparse.Namespace) -> bool:
     return bool(getattr(args, "private_key_env", None))
@@ -52,10 +60,12 @@ def build_signer_namespace(
 
 # ── Wallet resolution ─────────────────────────────────────────────────────
 
+
 def resolve_wallet(args: argparse.Namespace | None) -> str | None:
     """Resolve wallet address from args or environment."""
     if args is not None and getattr(args, "private_key_env", None):
         from uniswap_autopilot.execute._internal.pure_signer import get_address
+
         addr = get_address(args.private_key_env)
         if addr:
             return addr
@@ -63,6 +73,7 @@ def resolve_wallet(args: argparse.Namespace | None) -> str | None:
 
 
 # ── Backend detection ──────────────────────────────────────────────────────
+
 
 def detect_hot_wallet_backend() -> dict[str, Any]:
     """Detect if pure-signer (eth-account) is available."""
@@ -133,8 +144,7 @@ def ensure_signer_backend(args: argparse.Namespace | None, action_name: str = "b
         if _pure_signer_available():
             return "pure-python"
         raise RuntimeError(
-            f"Cannot {action_name}: eth-account is not installed. "
-            "Install with: pip install uniswap-autopilot[signer]"
+            f"Cannot {action_name}: eth-account is not installed. Install with: pip install uniswap-autopilot[signer]"
         )
 
     # Try auto-select
@@ -143,8 +153,7 @@ def ensure_signer_backend(args: argparse.Namespace | None, action_name: str = "b
         if _pure_signer_available():
             return "pure-python"
         raise RuntimeError(
-            f"Cannot {action_name}: eth-account is not installed. "
-            "Install with: pip install uniswap-autopilot[signer]"
+            f"Cannot {action_name}: eth-account is not installed. Install with: pip install uniswap-autopilot[signer]"
         )
 
     raise ValueError(
@@ -154,6 +163,7 @@ def ensure_signer_backend(args: argparse.Namespace | None, action_name: str = "b
 
 
 # ── Argument parsing ──────────────────────────────────────────────────────
+
 
 def add_signer_arguments(parser: argparse.ArgumentParser) -> None:
     """Add signer-related arguments to an argparse parser."""
@@ -165,6 +175,7 @@ def add_signer_arguments(parser: argparse.ArgumentParser) -> None:
 
 
 # ── Signing API ────────────────────────────────────────────────────────────
+
 
 def sign_typed_data_with_backend(
     typed_data_file: str,
@@ -178,6 +189,7 @@ def sign_typed_data_with_backend(
         raise RuntimeError("private_key_env not set on signer args")
 
     from uniswap_autopilot.execute._internal.pure_signer import sign_typed_data
+
     signature = sign_typed_data(typed_data, private_key_env=pk_env)
     return {
         "signature": signature,
@@ -191,21 +203,95 @@ def sign_and_broadcast(
     rpc_url: str,
     signer_args_source: argparse.Namespace,
 ) -> dict[str, Any]:
-    """Sign a transaction and broadcast via eth_sendRawTransaction."""
+    """Sign a transaction and broadcast via eth_sendRawTransaction.
+
+    Preflight gates (before signing):
+      1. Wallet must have enough native balance for gas.
+      2. Transaction must pass eth_estimateGas (dry-run simulation).
+    """
     pk_env = getattr(signer_args_source, "private_key_env", None)
     if not pk_env:
         raise RuntimeError("private_key_env not set on signer args")
 
-    from uniswap_autopilot.execute._internal.pure_signer import sign_transaction
-    from uniswap_autopilot.execute._internal.rpc import _json_rpc
-
-    signed_hex = sign_transaction(
-        tx, private_key_env=pk_env, chain_id=tx.get("chainId")
+    from uniswap_autopilot.audit import EVENT_ERROR, log_event
+    from uniswap_autopilot.execute._internal.pure_signer import (
+        get_address,
+        sign_transaction,
     )
+    from uniswap_autopilot.execute._internal.rpc import (
+        _json_rpc,
+        estimate_transaction_gas,
+        query_gas_price,
+        query_native_balance,
+    )
+
+    # Resolve wallet address
+    wallet = tx.get("from") or get_address(private_key_env=pk_env)
+    if not wallet:
+        raise RuntimeError("Cannot determine wallet address for preflight checks")
+
+    run_id = os.environ.get("STAGEFORGE_RUN_ID") or os.environ.get("RUN_ID")
+    chain_id = tx.get("chainId")
+
+    # Gate 1: native balance must cover gas
+    balance = query_native_balance(wallet, rpc_url)
+    if balance == 0:
+        log_event(
+            event=EVENT_ERROR,
+            chain=str(chain_id) if chain_id else None,
+            wallet=wallet,
+            run_id=run_id,
+            error_code="no_gas",
+            details={"native_balance": 0},
+        )
+        raise RuntimeError(f"Wallet {wallet} has zero native balance — cannot pay for gas.")
+
+    # Gate 2: estimateGas simulation
+    try:
+        estimated = estimate_transaction_gas(tx, rpc_url)
+    except Exception as exc:
+        reason = str(getattr(exc, "args", [str(exc)])[0])
+        log_event(
+            event=EVENT_ERROR,
+            chain=str(chain_id) if chain_id else None,
+            wallet=wallet,
+            run_id=run_id,
+            error_code="simulation_failed",
+            details={"to": tx.get("to"), "value": str(tx.get("value", 0)), "revert": reason},
+        )
+        raise RuntimeError(f"Gas estimation failed (tx would revert): {reason}") from exc
+
+    # Optional: warn if balance < estimated * gas_price
+    try:
+        gas_price = query_gas_price(rpc_url)
+        if balance < estimated * gas_price:
+            log_event(
+                event=EVENT_ERROR,
+                chain=str(chain_id) if chain_id else None,
+                wallet=wallet,
+                run_id=run_id,
+                error_code="insufficient_gas",
+                details={
+                    "native_balance": balance,
+                    "estimated_gas": estimated,
+                    "gas_price": gas_price,
+                    "required": estimated * gas_price,
+                },
+            )
+            raise RuntimeError(
+                f"Wallet {wallet} balance ({balance}) insufficient for gas (estimate: {estimated} * price: {gas_price})"
+            )
+    except RuntimeError:
+        raise
+    except Exception:
+        pass  # gas-price check is best-effort
+
+    signed_hex = sign_transaction(tx, private_key_env=pk_env, chain_id=chain_id)
     tx_hash = _json_rpc("eth_sendRawTransaction", [signed_hex], rpc_url)
 
     # Wait briefly and get receipt
     import time
+
     time.sleep(1)
     receipt = _json_rpc("eth_getTransactionReceipt", [tx_hash], rpc_url)
 
