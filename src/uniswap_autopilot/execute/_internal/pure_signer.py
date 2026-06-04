@@ -84,7 +84,7 @@ def sign_typed_data(
 
     signable = encode_typed_data(
         full_message={
-            "types": types,
+            "types": types_clean,
             "domain": domain,
             "primaryType": primary_type,
             "message": message,

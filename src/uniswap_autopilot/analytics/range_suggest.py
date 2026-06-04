@@ -161,13 +161,9 @@ def suggest_ranges(
     # Determine decimals for token0 / token1 ordering
     token0_addr = pool_info["token0"]
     addr_a = token_a_info.get("address", "")
-    addr_b = token_b_info.get("address", "")
     if token_a_info.get("address") == "NATIVE":
         wrapped = chain.tokens.get(chain.wrapped_native_symbol.upper())
         addr_a = wrapped.address if wrapped else resolve_token(chain, chain.wrapped_native_symbol, rpc)["address"]
-    if token_b_info.get("address") == "NATIVE":
-        wrapped = chain.tokens.get(chain.wrapped_native_symbol.upper())
-        addr_b = wrapped.address if wrapped else resolve_token(chain, chain.wrapped_native_symbol, rpc)["address"]
 
     if token0_addr.lower() == addr_a.lower():
         decimals0 = token_a_info["decimals"]

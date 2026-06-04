@@ -154,7 +154,7 @@ def main() -> None:
         preview = build_execute_preview(tx, explicit_rpc_url=args.rpc_url)
         summary = preview["summary"]
         rpc_url = summary["rpcUrlResolved"]
-        rpc_candidates = summary["rpcEnvCandidates"]
+        _rpc_candidates = summary["rpcEnvCandidates"]
 
         response: dict[str, Any] = {
             "action": "execute_transaction",
