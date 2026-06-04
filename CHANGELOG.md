@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.6] — 2026-06-05
+
+### Added
+- **Pair-age risk signal**: DexScreener `pairCreatedAt` feeds risk scoring
+  (<24h +25, <7d +15, <30d +5); `pairAgeDays` exposed in market data.
+
 ## [0.1.1] — 2026-05-23
 
 ### Fixed
