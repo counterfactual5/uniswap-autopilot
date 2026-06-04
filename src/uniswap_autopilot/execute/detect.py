@@ -29,7 +29,7 @@ def sanitize_backend_status(status: dict[str, object]) -> dict[str, object]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Detect signing backend availability")
-    args = parser.parse_args()
+    _ = parser.parse_args()
 
     load_local_env()
     hot = sanitize_backend_status(detect_hot_wallet_backend())
