@@ -56,7 +56,7 @@ _VALID_TRANSITIONS: dict[str, frozenset[str]] = {
 # ── Module-level state ──────────────────────────────────────────────────────
 
 _write_lock = threading.Lock()
-_DEFAULT_PROJECT = "uniswap-autopilot"
+_DEFAULT_PROJECT = __name__.split(".")[0].replace("_", "-")
 
 
 def _state_dir() -> Path:

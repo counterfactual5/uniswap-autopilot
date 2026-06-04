@@ -49,7 +49,7 @@ try:
 except ImportError:  # pragma: no cover
     _yaml = None  # YAML optional; JSON always works
 
-_DEFAULT_PROJECT = "uniswap-autopilot"
+_DEFAULT_PROJECT = __name__.split(".")[0].replace("_", "-")
 
 
 # ── Data structures ──────────────────────────────────────────────────────────
