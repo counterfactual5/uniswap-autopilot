@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -17,8 +16,7 @@ from uniswap_autopilot.common.common import (
     sort_token_addresses,
 )
 from uniswap_autopilot.execute._internal.rpc import (
-    decode_address, decode_uint, encode_address, encode_selector, encode_uint,
-    eth_call, resolve_rpc_url,
+    decode_address, decode_uint, encode_address, encode_selector, eth_call, resolve_rpc_url,
 )
 
 ZERO_ADDR = "0x0000000000000000000000000000000000000000"

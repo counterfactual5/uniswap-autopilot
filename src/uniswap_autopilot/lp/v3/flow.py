@@ -13,7 +13,6 @@ from uniswap_autopilot.common.common import (
     load_local_env,
     resolve_wallet_address,
 )
-from uniswap_autopilot.execute._internal.rpc import resolve_rpc_url
 from uniswap_autopilot.lp.v3.approve import build_approval_tx, check_lp_approvals
 from uniswap_autopilot.lp.v3.build_tx import (
     build_collect_transaction,

@@ -4,12 +4,11 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from pathlib import Path
 from typing import Any
 
 
 from uniswap_autopilot.common.common import dump_json, normalize_chain, resolve_token, load_local_env
-from uniswap_autopilot.search.search import _ds_lookup, _fetch_json
+from uniswap_autopilot.search.search import _ds_lookup
 
 # Price feed integration
 
