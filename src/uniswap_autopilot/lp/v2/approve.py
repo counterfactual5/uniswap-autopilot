@@ -27,7 +27,7 @@ def check_v2_approvals(
     chain_name: str,
     rpc_url: str | None = None,
 ) -> dict[str, Any]:
-    chain = normalize_chain(chain_name)
+    _chain = normalize_chain(chain_name)
     router02 = get_v2_router02_address(chain_name)
 
     result = {"action": "v2_approval_check", "owner": owner, "spender": router02}
