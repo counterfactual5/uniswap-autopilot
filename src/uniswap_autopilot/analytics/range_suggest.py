@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import sys
 from pathlib import Path
 from typing import Any
@@ -15,7 +14,6 @@ from uniswap_autopilot.common.common import (
     normalize_chain,
     resolve_token,
     validate_fee_tier,
-    V3_FEE_TIERS,
 )
 from uniswap_autopilot.lp.v3.pool import query_pool_full_info
 from uniswap_autopilot.lp.v3.tick import price_to_tick, tick_to_price, nearest_usable_tick, fee_tier_to_tick_spacing

@@ -4,7 +4,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -23,7 +22,7 @@ from uniswap_autopilot.common.common import (
     resolve_wallet_address,
     sort_token_addresses,
 )
-from uniswap_autopilot.execute._internal.rpc import build_calldata, encode_uint
+from uniswap_autopilot.execute._internal.rpc import encode_uint
 from uniswap_autopilot.lp.v3.tick import tick_to_sqrt_price_x96
 from uniswap_autopilot.lp.v4.pool import compute_pool_id, query_v4_slot0
 

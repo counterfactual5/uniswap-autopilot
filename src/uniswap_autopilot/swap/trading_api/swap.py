@@ -3,14 +3,13 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import sys
 from pathlib import Path
 from typing import Any
 
 
-from uniswap_autopilot.common.common import dump_json, load_local_env, native_currency_address, post_json, require_api_key
+from uniswap_autopilot.common.common import dump_json, load_local_env, post_json, require_api_key
 
 UNISWAPX_ROUTINGS = {"DUTCH_V2", "DUTCH_V3", "PRIORITY"}
 HEX_RE = re.compile(r"^0x[0-9a-fA-F]+$")

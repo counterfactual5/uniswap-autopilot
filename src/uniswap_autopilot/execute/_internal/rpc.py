@@ -12,7 +12,6 @@ import os
 import shlex
 import subprocess
 from typing import Any
-from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from uniswap_autopilot.execute._internal.constants import CHAIN_BY_ID, GLOBAL_RPC_ENV_CANDIDATES

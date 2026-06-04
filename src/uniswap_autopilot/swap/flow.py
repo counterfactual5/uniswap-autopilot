@@ -30,7 +30,6 @@ from uniswap_autopilot.swap.flow_core.paper import (
 from uniswap_autopilot.swap.flow_core.policy import (
     evaluate_auto_trade_policy,
     load_auto_trade_policy,
-    normalize_policy_token,
     policy_rule_allows,
 )
 from uniswap_autopilot.swap.trading_api import quote as trading_api_quote
@@ -533,7 +532,6 @@ def run_trade_flow(
                             response["swap"]["wethUnwrap"]["error"] = str(unwrap_exc)
                             response["nextActions"].append("broadcast-weth-unwrap")
                 elif dst_chain and response["swap"].get("broadcastRequested"):
-                    from uniswap_autopilot.swap.extensions.bridge import verify_bridge_arrival
                     response["bridgeVerification"] = {
                         "dstChain": dst_chain,
                         "status": "pending",

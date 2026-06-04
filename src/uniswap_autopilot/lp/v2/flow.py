@@ -10,7 +10,6 @@ from typing import Any
 
 from uniswap_autopilot.common.common import (
     dump_json,
-    get_v2_router02_address,
     load_local_env,
     normalize_chain,
     resolve_token,

@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -15,7 +14,7 @@ from uniswap_autopilot.common.common import (
     normalize_chain,
 )
 from uniswap_autopilot.execute._internal.rpc import (
-    decode_address, decode_int256, decode_uint, encode_address, encode_selector,
+    decode_address, decode_uint, encode_address, encode_selector,
     encode_uint, eth_call, resolve_rpc_url,
 )
 from uniswap_autopilot.lp.v3.tick import tick_to_price

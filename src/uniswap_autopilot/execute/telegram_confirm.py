@@ -15,13 +15,11 @@ from __future__ import annotations
 
 import json
 import os
-import sys
 import tempfile
 import time
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.parse import urljoin
 from urllib.request import Request, urlopen
 
 # ── config ──────────────────────────────────────────────────────────────────
