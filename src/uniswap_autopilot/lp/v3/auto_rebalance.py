@@ -3,13 +3,12 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 from pathlib import Path
 from typing import Any
 
 
 from uniswap_autopilot.common.common import dump_json, load_local_env, normalize_chain, resolve_wallet_address, resolve_token, decimal_to_base_units
-from uniswap_autopilot.lp.v3.position import query_position, query_positions_by_owner
+from uniswap_autopilot.lp.v3.position import query_position
 from uniswap_autopilot.analytics.position import analyze_position, analyze_positions_by_owner
 from uniswap_autopilot.analytics.range_suggest import suggest_ranges
 from uniswap_autopilot.lp.v3.build_tx import (

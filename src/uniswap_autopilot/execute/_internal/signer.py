@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import argparse
 import os
-from pathlib import Path
 from typing import Any
 
 from uniswap_autopilot.common.common import load_local_env, resolve_wallet_address
@@ -23,16 +22,7 @@ from uniswap_autopilot.execute._internal.constants import (
 
 try:
     from uniswap_autopilot.execute._internal.pure_signer import (
-        get_address as _pure_get_address,
-    )
-    from uniswap_autopilot.execute._internal.pure_signer import (
         is_available as _pure_signer_available,
-    )
-    from uniswap_autopilot.execute._internal.pure_signer import (
-        sign_transaction as _pure_sign_transaction,
-    )
-    from uniswap_autopilot.execute._internal.pure_signer import (
-        sign_typed_data as _pure_sign_typed_data,
     )
 except ImportError:
 

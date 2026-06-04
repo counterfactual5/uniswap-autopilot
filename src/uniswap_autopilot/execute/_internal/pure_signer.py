@@ -12,7 +12,6 @@ Private key is read from the environment variable specified by
 
 from __future__ import annotations
 
-import json
 import os
 from typing import Any
 
@@ -20,7 +19,6 @@ from typing import Any
 try:
     from eth_account import Account
     from eth_account.messages import encode_typed_data
-    from eth_account.types import SignableMessage
 
     _HAS_ETH_ACCOUNT = True
 except ImportError:

@@ -6,7 +6,6 @@ import json
 import sys
 from pathlib import Path
 from typing import Any
-from urllib.request import Request, urlopen
 
 
 from uniswap_autopilot.common.common import (

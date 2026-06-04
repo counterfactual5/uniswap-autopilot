@@ -3,11 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import sys
-import urllib.error
-import urllib.request
-from pathlib import Path
 from typing import Any
 
 
@@ -15,7 +11,7 @@ from uniswap_autopilot.common.common import dump_json, load_local_env, normalize
 from uniswap_autopilot.execute._internal.rpc import (
     decode_uint, eth_call, encode_selector, resolve_rpc_url,
 )
-from uniswap_autopilot.lp.v3.pool import query_pool_full_info, query_slot0
+from uniswap_autopilot.lp.v3.pool import query_slot0
 from uniswap_autopilot.lp.v3.position import query_position, query_positions_by_owner
 
 

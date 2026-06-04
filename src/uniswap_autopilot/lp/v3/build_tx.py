@@ -26,7 +26,6 @@ from uniswap_autopilot.common.common import (
 from uniswap_autopilot.execute._internal.rpc import build_calldata, encode_address, encode_int, encode_uint
 from uniswap_autopilot.lp.v3.pool import query_pool_address, query_pool_full_info, query_slot0
 from uniswap_autopilot.lp.v3.position import query_position
-from uniswap_autopilot.lp.v3.tick import fee_tier_to_tick_spacing
 from uniswap_autopilot.analytics.position import calculate_position_amounts
 
 
@@ -290,7 +289,7 @@ def build_decrease_liquidity_transaction(
     min0 = "0"
     min1 = "0"
     if slippage_pct > 0:
-        from decimal import Decimal, ROUND_DOWN
+        from decimal import Decimal
         try:
             factory = get_v3_factory_address(chain_name)
             pool_addr = query_pool_address(pos["token0"], pos["token1"], int(pos["fee"]), factory, rpc_url_resolved)

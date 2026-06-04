@@ -75,6 +75,39 @@ from uniswap_autopilot.execute._internal.tx import (
     validate_hex_data,
 )
 
+__all__ = [
+    # audit
+    "EVENT_BROADCAST", "EVENT_CONFIRM", "EVENT_ERROR", "EVENT_PREFLIGHT", "log_event",
+    # common
+    "dump_json", "load_local_env",
+    # constants
+    "APPROVE_SELECTOR", "CHAIN_BY_ID", "DEFAULT_PRIVATE_KEY_ENV",
+    "GLOBAL_RPC_ENV_CANDIDATES", "HEX_DATA_RE",
+    "HOT_WALLET_ACCOUNT_ENV_NAME", "HOT_WALLET_KEYSTORE_ENV_NAME",
+    "HOT_WALLET_PASSWORD_FILE_ENV_NAME", "HOT_WALLET_PRIVATE_KEY_ENV_NAME",
+    # preflight
+    "build_preflight_report",
+    # rpc
+    "estimate_transaction_gas", "execute_cast_receipt", "parse_cast_int_output",
+    "query_erc20_allowance", "query_erc20_balance", "query_gas_price",
+    "query_native_balance", "receipt_succeeded", "resolve_rpc_url",
+    "rpc_env_candidates", "run_cast_text",
+    # signer
+    "add_signer_arguments", "auto_select_signer_args", "build_signer_namespace",
+    "detect_hot_wallet_backend", "ensure_signer_backend", "has_direct_signer",
+    "sign_typed_data_with_backend",
+    # submit
+    "broadcast_with_backend", "build_broadcast_package", "extract_transaction_hash",
+    # tx
+    "base_units_to_human", "build_confirmation_phrase", "build_execute_preview",
+    "decode_erc20_approve_call", "load_approval_transaction", "load_json",
+    "load_swap_transaction", "lookup_token_decimals", "lookup_token_symbol",
+    "normalize_transaction", "optional_address", "parse_intish",
+    "summarize_transaction", "validate_hex_data",
+    # entry point
+    "main",
+]
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="对 approval 或 swap 交易做安全广播")

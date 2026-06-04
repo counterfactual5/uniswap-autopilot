@@ -5,7 +5,6 @@ import argparse
 import json
 import os
 import re
-import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from decimal import Decimal, InvalidOperation
