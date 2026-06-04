@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.5.6] — 2026-06-05
+## [0.6.0] — 2026-06-05
 
 ### Added
 - **Pair-age risk signal**: DexScreener `pairCreatedAt` feeds risk scoring
