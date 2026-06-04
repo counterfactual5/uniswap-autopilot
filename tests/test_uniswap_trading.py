@@ -14,7 +14,6 @@ from uniswap_autopilot.execute._internal import signer as execute_signer  # type
 from uniswap_autopilot.execute._internal import submit as execute_submit  # type: ignore
 from uniswap_autopilot.execute._internal import tx as execute_tx  # type: ignore
 from uniswap_autopilot.swap import flow as run_trade_flow  # type: ignore
-from uniswap_autopilot.swap import deep_link as deep_link_orig
 from uniswap_autopilot.swap.links import deep_link as build_swap_link  # type: ignore
 from uniswap_autopilot.swap.trading_api import quote as trading_api_quote  # type: ignore
 from uniswap_autopilot.swap.trading_api import swap as swap_dry_run  # type: ignore

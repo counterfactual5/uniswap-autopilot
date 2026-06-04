@@ -2,7 +2,6 @@
 """Tests for lp.v3.compound and lp.v3.auto_rebalance."""
 from __future__ import annotations
 
-import json
 import unittest
 from unittest import mock
 
@@ -91,7 +90,6 @@ def _rebalance_patches(extra=None):
 
 def apply_patches(patches, func):
     """Decorator-like: apply a list of mock patches to a test method."""
-    import functools
     for p in reversed(patches):
         func = p(func)
     return func
