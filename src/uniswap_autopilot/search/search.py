@@ -289,6 +289,7 @@ def _ds_lookup(chain: str, address: str) -> dict[str, Any] | None:
         "marketCap": mcap,
         "dexId": best.get("dexId", ""),
         "pairAddress": best.get("pairAddress", ""),
+        "pairCreatedAt": best.get("pairCreatedAt"),
         "quoteSymbol": quote_token.get("symbol", ""),
         "quoteAddress": quote_token.get("address", ""),
         "source": "dexscreener",

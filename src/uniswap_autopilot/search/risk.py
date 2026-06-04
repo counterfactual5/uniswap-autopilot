@@ -13,11 +13,26 @@ from uniswap_autopilot.search.search import _ds_lookup
 # Price feed integration
 
 
+def _age_days(pair_created_at_ms: Any) -> float | None:
+    """Convert a DexScreener ``pairCreatedAt`` (ms epoch) to age in days."""
+    if pair_created_at_ms in (None, 0, "0"):
+        return None
+    try:
+        created_s = float(pair_created_at_ms) / 1000.0
+    except (ValueError, TypeError):
+        return None
+    import time
+
+    age = (time.time() - created_s) / 86_400.0
+    return age if age >= 0 else None
+
+
 def _compute_risk(
     liquidity_usd: float,
     volume_24h: float,
     market_cap: float,
     price_change_24h: float,
+    pair_age_days: float | None = None,
 ) -> tuple[int, list[str]]:
     score = 0
     warnings: list[str] = []
@@ -58,6 +73,18 @@ def _compute_risk(
         score += 8
         warnings.append(f"Large price change: {price_change_24h:+.1f}%")
 
+    # Pair age — freshly-created pairs are a major rug-pull signal.
+    if pair_age_days is not None:
+        if pair_age_days < 1:
+            score += 25
+            warnings.append(f"Pair created <24h ago ({pair_age_days * 24:.0f}h)")
+        elif pair_age_days < 7:
+            score += 15
+            warnings.append(f"Very new pair ({pair_age_days:.1f} days old)")
+        elif pair_age_days < 30:
+            score += 5
+            warnings.append(f"New pair ({pair_age_days:.0f} days old)")
+
     return score, warnings
 
 
@@ -94,6 +121,7 @@ def assess_risk(chain_name: str, token_name: str) -> dict[str, Any]:
     market_cap = 0.0
     price_change_24h = 0.0
     price_usd: float | None = None
+    pair_age_days: float | None = None
 
     if ds_data:
         liquidity_usd = float(ds_data.get("liquidityUsd") or 0)
@@ -102,6 +130,7 @@ def assess_risk(chain_name: str, token_name: str) -> dict[str, Any]:
         price_changes = ds_data.get("priceChange") or {}
         price_change_24h = float(price_changes.get("h24") or 0)
         price_usd = ds_data.get("priceUsd")
+        pair_age_days = _age_days(ds_data.get("pairCreatedAt"))
         if price_usd is not None:
             try:
                 price_usd = float(price_usd)
@@ -115,7 +144,9 @@ def assess_risk(chain_name: str, token_name: str) -> dict[str, Any]:
         if result:
             price_usd = result["price"]
 
-    score, warnings = _compute_risk(liquidity_usd, volume_24h, market_cap, price_change_24h)
+    score, warnings = _compute_risk(
+        liquidity_usd, volume_24h, market_cap, price_change_24h, pair_age_days
+    )
     level = _risk_level(score)
 
     market_data: dict[str, Any] = {
@@ -124,6 +155,8 @@ def assess_risk(chain_name: str, token_name: str) -> dict[str, Any]:
         "marketCap": market_cap,
         "priceChange24h": price_change_24h,
     }
+    if pair_age_days is not None:
+        market_data["pairAgeDays"] = round(pair_age_days, 2)
     if price_usd is not None:
         market_data["priceUsd"] = price_usd
 
