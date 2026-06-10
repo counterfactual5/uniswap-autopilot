@@ -31,3 +31,4 @@ venv/
 .coverage
 htmlcov/
 token-cache.json
+.github/workflows/
